@@ -13,7 +13,7 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <c:if test="${not empty successMessage or not empty errorMessage}">
             <div id="scoreFlashMessage" class="hidden" data-message-type="${not empty successMessage ? 'success' : 'error'}">${not empty successMessage ? successMessage : errorMessage}</div>
         </c:if>
@@ -27,7 +27,7 @@
                             <span class="code-tag font-bold text-xs bg-slate-900 text-white border-slate-900">${c.code}</span>
                             <h3 class="text-sm font-extrabold text-slate-900">${c.name}</h3>
                             <span class="status-badge ${c.status == 'COMPLETED' ? 'status-approved' : 'status-pending'}">
-                                ${c.status}
+                                ${enumLabel.label(c.status)}
                             </span>
                         </div>
                         <form method="post" action="${pageContext.request.contextPath}/admin/results/${c.id}/finalize" onsubmit="return confirmFinalize(event, '${c.name}');">
@@ -102,7 +102,7 @@
                                                     </td>
                                                     <td class="align-middle text-center whitespace-nowrap">
                                                         <span class="status-badge ${assign.status == 'EVALUATED' ? 'status-approved' : 'status-pending'}">
-                                                            ${assign.status}
+                                                            ${enumLabel.label(assign.status)}
                                                         </span>
                                                     </td>
                                                 </tr>

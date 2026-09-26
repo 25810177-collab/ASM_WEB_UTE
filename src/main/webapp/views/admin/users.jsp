@@ -12,7 +12,7 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <!-- Tabs Navigation -->
         <div class="flex items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl w-fit">
             <button type="button" onclick="switchUserTab('lecturers')" id="btn-tab-lecturers"
@@ -152,7 +152,7 @@
                                         </td>
                                         <td class="align-middle whitespace-nowrap">
                                             <span class="status-badge ${u.role == 'ADMIN' ? 'status-danger' : u.role == 'DEAN' ? 'status-info' : u.role == 'LECTURER' ? 'status-pending' : 'status-approved'}">
-                                                ${u.role}
+                                                ${enumLabel.label(u.role)}
                                             </span>
                                         </td>
                                         <td class="align-middle whitespace-nowrap">

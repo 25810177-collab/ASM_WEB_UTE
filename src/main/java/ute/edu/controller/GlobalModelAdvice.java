@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import ute.edu.entity.Notification;
 import ute.edu.entity.UserAccount;
+import ute.edu.helper.EnumLabelFormatter;
 import ute.edu.service.NotificationService;
 
 @ControllerAdvice
@@ -14,9 +15,16 @@ import ute.edu.service.NotificationService;
 public class GlobalModelAdvice {
 
     private final NotificationService notificationService;
+    private final EnumLabelFormatter enumLabel;
 
-    public GlobalModelAdvice(NotificationService notificationService) {
+    public GlobalModelAdvice(NotificationService notificationService, EnumLabelFormatter enumLabel) {
         this.notificationService = notificationService;
+        this.enumLabel = enumLabel;
+    }
+
+    @ModelAttribute("enumLabel")
+    public EnumLabelFormatter getEnumLabelFormatter() {
+        return enumLabel;
     }
 
     @ModelAttribute("unreadNotifCount")

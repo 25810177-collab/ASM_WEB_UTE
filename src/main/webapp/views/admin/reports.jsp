@@ -12,9 +12,9 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <!-- Toolbar & Search -->
-        <div class="table-shell">
+        <div class="table-shell admin-data-surface">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100 shadow-xs">

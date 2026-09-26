@@ -13,7 +13,7 @@
             <div class="app-main">
                 <jsp:include page="../common/navbar.jsp" />
 
-                <main class="app-content space-y-6">
+                <main class="app-content workspace-page space-y-6">
                     <!-- 3D Hero Section -->
                     <section class="dashboard-hero">
                         <div class="hero-orbit" aria-hidden="true"></div>
@@ -184,12 +184,12 @@
                                             <div class="flex items-center gap-2.5">
                                                 <span
                                                     class="status-badge ${p.status == 'OPEN' ? 'status-approved' : 'status-neutral'}">
-                                                    ${p.status}
+                                                    ${enumLabel.label(p.status)}
                                                 </span>
                                                 <h4 class="font-bold text-xs text-slate-900">${p.name}</h4>
                                                 <span
                                                     class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                                                    ${p.type}
+                                                    ${enumLabel.label(p.type)}
                                                 </span>
                                             </div>
                                             <span class="text-xs text-slate-500 font-medium">
@@ -279,10 +279,7 @@
                                     <i data-lucide="clipboard-list" class="w-4 h-4 text-sky-600"></i>
                                     <span>Đăng ký đề tài mới nhất</span>
                                 </h3>
-                                <a href="${pageContext.request.contextPath}/admin/registrations"
-                                    class="text-xs font-bold text-sky-600 hover:text-sky-700">
-                                    Xem tất cả &rarr;
-                                </a>
+                                <span class="text-xs font-semibold text-slate-400">Theo dõi</span>
                             </div>
                             <div class="divide-y divide-slate-100 text-xs">
                                 <c:if test="${empty recentRegistrations}">
@@ -306,7 +303,7 @@
                                         </div>
                                         <span
                                             class="status-badge ${reg.status == 'APPROVED' ? 'status-approved' : reg.status == 'PENDING' ? 'status-pending' : 'status-danger'} shrink-0">
-                                            ${reg.status}
+                                            ${enumLabel.label(reg.status)}
                                         </span>
                                     </div>
                                 </c:forEach>
@@ -351,7 +348,7 @@
                                         </div>
                                         <span
                                             class="status-badge ${c.status == 'COMPLETED' ? 'status-approved' : 'status-pending'} shrink-0">
-                                            ${c.status}
+                                            ${enumLabel.label(c.status)}
                                         </span>
                                     </div>
                                 </c:forEach>

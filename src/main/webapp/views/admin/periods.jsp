@@ -12,9 +12,9 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <!-- Top Action Bar -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="admin-page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100 shadow-xs">
                     <i data-lucide="calendar-range" class="w-5 h-5"></i>
@@ -38,7 +38,7 @@
                         <!-- Header Status Badge -->
                         <div class="flex justify-between items-start mb-4">
                             <span class="code-tag font-bold">
-                                ${p.type}
+                                ${enumLabel.label(p.type)}
                             </span>
                             <span class="status-badge ${p.status == 'OPEN' ? 'status-approved' : p.status == 'DRAFT' ? 'status-pending' : 'status-neutral'}">
                                 ${p.status == 'OPEN' ? 'ĐANG MỞ' : p.status == 'DRAFT' ? 'BẢN NHÁP' : 'ĐÃ ĐÓNG'}

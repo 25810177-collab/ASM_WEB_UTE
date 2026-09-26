@@ -157,7 +157,7 @@
                     });
                 })();
             </script>
-            <script src="${pageContext.request.contextPath}/assets/js/enterprise-ui.js?v=4.4.0"></script>
+            <script src="${pageContext.request.contextPath}/assets/js/enterprise-ui.js?v=5.0.0"></script>
         </body>
 
         </html>

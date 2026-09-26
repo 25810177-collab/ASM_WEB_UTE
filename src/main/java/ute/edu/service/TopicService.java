@@ -24,38 +24,66 @@ public class TopicService {
         this.supervisorRepository = supervisorRepository;
     }
 
-    /** Lấy toàn bộ đề tài. */
+    /**
+     * Lấy toàn bộ danh sách đề tài hiện có.
+     * @return Danh sách các đối tượng Topic
+     */
     public List<Topic> getAllTopics() {
         return topicRepository.findAll();
     }
 
-    /** Lấy đề tài theo trạng thái. */
+    /**
+     * Lấy danh sách đề tài dựa theo trạng thái duyệt.
+     * @param status Trạng thái của đề tài (Ví dụ: APPROVED, PENDING)
+     * @return Danh sách các đề tài có trạng thái tương ứng
+     */
     public List<Topic> getTopicsByStatus(TopicStatus status) {
         return topicRepository.findByStatus(status);
     }
 
-    /** Lấy đề tài theo khoa. */
+    /**
+     * Lấy danh sách đề tài trực thuộc một khoa (Department).
+     * @param departmentId Mã định danh của khoa
+     * @return Danh sách đề tài thuộc khoa
+     */
     public List<Topic> getTopicsByDepartment(Long departmentId) {
         return topicRepository.findByDepartmentId(departmentId);
     }
 
-    /** Lấy đề tài theo đợt đăng ký. */
+    /**
+     * Lấy danh sách đề tài trong một đợt đăng ký cụ thể.
+     * @param periodId Mã định danh của đợt đăng ký
+     * @return Danh sách đề tài thuộc đợt đăng ký đó
+     */
     public List<Topic> getTopicsByPeriod(Long periodId) {
         return topicRepository.findByRegistrationPeriodId(periodId);
     }
 
-    /** Lấy đề tài do giảng viên phụ trách. */
+    /**
+     * Lấy danh sách đề tài do một giảng viên phụ trách (có thể là GVHD chính hoặc Đồng GVHD).
+     * @param lecturerId Mã định danh của giảng viên
+     * @return Danh sách đề tài của giảng viên đó
+     */
     public List<Topic> getTopicsByLecturer(Long lecturerId) {
         return topicRepository.findByLecturerIdOrCoLecturerId(lecturerId, lecturerId);
     }
 
-    /** Tìm một đề tài theo mã định danh. */
+    /**
+     * Tìm một đề tài cụ thể theo mã định danh (ID).
+     * @param id Mã định danh của đề tài
+     * @return Đối tượng Topic nếu tìm thấy, ngược lại trả về null
+     */
     public Topic findById(Long id) {
         return topicRepository.findById(id).orElse(null);
     }
 
+    /**
+     * Lưu mới hoặc cập nhật một đề tài.
+     * Tự động thiết lập thời gian tạo/cập nhật và đồng bộ bảng TopicSupervisor.
+     * @param topic Đối tượng đề tài cần lưu
+     * @return Đề tài sau khi đã lưu thành công vào CSDL
+     */
     @Transactional
-    /** Lưu đề tài mới hoặc cập nhật đề tài hiện có. */
     public Topic save(Topic topic) {
         if (topic.getCreatedAt() == null) {
             topic.setCreatedAt(LocalDateTime.now());
@@ -85,17 +113,28 @@ public class TopicService {
         return saved;
     }
 
+    /**
+     * Cập nhật trạng thái duyệt của đề tài.
+     * @param topicId Mã định danh của đề tài cần cập nhật
+     * @param status Trạng thái mới của đề tài
+     * @return Đề tài sau khi đã cập nhật trạng thái
+     * @throws IllegalArgumentException Nếu không tìm thấy đề tài
+     */
     @Transactional
-    /** Cập nhật trạng thái duyệt của đề tài. */
     public Topic updateStatus(Long topicId, TopicStatus status) {
-        Topic topic = topicRepository.findById(topicId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đề tài"));
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đề tài với ID: " + topicId));
         topic.setStatus(status);
         topic.setUpdatedAt(LocalDateTime.now());
         return topicRepository.save(topic);
     }
 
+    /**
+     * Xóa một đề tài ra khỏi hệ thống.
+     * Thực hiện xóa các liên kết giám sát (TopicSupervisor) trước khi xóa đề tài.
+     * @param id Mã định danh của đề tài cần xóa
+     */
     @Transactional
-    /** Xóa đề tài theo mã định danh. */
     public void delete(Long id) {
         supervisorRepository.deleteByTopicId(id);
         topicRepository.deleteById(id);

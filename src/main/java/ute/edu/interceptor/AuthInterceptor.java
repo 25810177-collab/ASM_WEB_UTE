@@ -43,6 +43,10 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         if (user == null) {
             if (uri.startsWith("/admin") || uri.startsWith("/lecturer") || uri.startsWith("/student")) {
+                if (session != null) {
+                    session.invalidate();
+                }
+                clearAuthCookie(response, contextPath);
                 response.sendRedirect(contextPath + "/login");
                 return false;
             }
@@ -83,6 +87,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             if (AuthTokenService.COOKIE_NAME.equals(cookie.getName())) return cookie.getValue();
         }
         return null;
+    }
+
+    private void clearAuthCookie(HttpServletResponse response, String contextPath) {
+        response.addHeader("Set-Cookie", AuthTokenService.COOKIE_NAME
+                + "=; Max-Age=0; Path=" + contextPath + "; HttpOnly; SameSite=Lax");
     }
 
     private String getHomeForRole(UserRole role) {

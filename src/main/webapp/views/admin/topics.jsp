@@ -12,9 +12,9 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <!-- Search & Filter Toolbar Surface -->
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="admin-filter-bar bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
             <form method="get" action="${pageContext.request.contextPath}/admin/topics" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-center">
                 <div class="relative">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
@@ -109,22 +109,22 @@
                                             <span class="status-badge status-danger">TỪ CHỐI</span>
                                         </c:when>
                                         <c:otherwise>
-                                            <span class="status-badge status-neutral">${t.status}</span>
+                                            <span class="status-badge status-neutral">${enumLabel.label(t.status)}</span>
                                         </c:otherwise>
                                     </c:choose>
                                 </td>
                                 <td class="align-middle text-right whitespace-nowrap">
-                                    <div class="inline-flex items-center justify-end gap-1.5">
+                                    <div class="inline-flex items-center justify-end gap-1">
                                         <c:if test="${t.status == 'PENDING' || t.status == 'DRAFT'}">
                                             <button type="button" onclick="approveTopicAjax('${t.id}', this)"
-                                                    class="btn-ui bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] py-1 px-2.5 rounded-lg shadow-xs"
+                                                    class="inline-flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-extrabold leading-none py-1 px-2.5 rounded-full border border-emerald-600 shadow-xs transition-colors"
                                                     title="Chấp nhận &amp; công bố">
-                                                <i data-lucide="check" class="w-3.5 h-3.5"></i> Duyệt
+                                                <i data-lucide="check" class="w-3 h-3"></i> Duyệt
                                             </button>
                                             <button type="button" onclick="rejectTopicSweetAlert('${t.id}', '${fn:escapeXml(t.title)}')"
-                                                    class="btn-ui bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-[11px] py-1 px-2.5 rounded-lg transition-colors"
+                                                    class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white text-[12px] font-extrabold leading-none py-1 px-2.5 rounded-full border border-rose-200 transition-colors"
                                                     title="Từ chối đề xuất">
-                                                <i data-lucide="x" class="w-3.5 h-3.5"></i> Từ chối
+                                                <i data-lucide="x" class="w-3 h-3"></i> Từ chối
                                             </button>
                                         </c:if>
                                         <form method="post" action="${pageContext.request.contextPath}/admin/topics/${t.id}/delete" class="inline" onsubmit="return confirmDeleteTopic(event, '${fn:escapeXml(t.title)}');">

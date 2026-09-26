@@ -13,13 +13,13 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content space-y-6">
+    <main class="app-content workspace-page admin-page space-y-6">
         <c:if test="${not empty successMessage or not empty errorMessage}">
             <div id="councilFlashMessage" class="hidden" data-message-type="${not empty successMessage ? 'success' : 'error'}">${not empty successMessage ? successMessage : errorMessage}</div>
         </c:if>
 
         <!-- Top Toolbar -->
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="admin-page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-100 shadow-xs">
                     <i data-lucide="scale" class="w-5 h-5"></i>
@@ -36,7 +36,7 @@
         </div>
 
         <!-- Filter Bar -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="admin-filter-bar bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
             <div class="relative">
                 <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                 <input id="councilSearch" type="search" placeholder="Tìm theo tên giảng viên..." class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
@@ -67,7 +67,7 @@
                                 </span>
                             </div>
                             <span class="status-badge ${c.status == 'COMPLETED' ? 'status-approved' : 'status-pending'}">
-                                ${c.status}
+                                ${enumLabel.label(c.status)}
                             </span>
                         </div>
 
@@ -119,7 +119,7 @@
                                                 </c:when>
                                                 <c:otherwise>
                                                     <span class="status-badge status-neutral">
-                                                        ỦY VIÊN
+                                                        ${enumLabel.label(m.role)}
                                                     </span>
                                                 </c:otherwise>
                                             </c:choose>

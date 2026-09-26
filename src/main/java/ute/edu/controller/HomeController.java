@@ -42,26 +42,40 @@ public class HomeController {
         this.studentRepository = studentRepository;
     }
 
+    /**
+     * Hiển thị trang chủ và danh sách đề tài.
+     * Hỗ trợ chức năng lọc danh sách đề tài theo ID Khoa và tìm kiếm theo từ khóa.
+     * Chỉ hiển thị các đề tài đã được công bố (PUBLISHED) hoặc đã duyệt (APPROVED).
+     * 
+     * @param departmentId ID của Khoa (tùy chọn) dùng để lọc
+     * @param keyword Từ khóa (tùy chọn) tìm kiếm theo tên, mã đề tài hoặc tên giảng viên
+     * @param model Đối tượng Model dùng để truyền dữ liệu xuống View (JSP)
+     * @return Tên view hiển thị (index)
+     */
     @GetMapping({"/", "/home", "/index"})
     /** Lọc và hiển thị đề tài theo khoa hoặc từ khóa. */
     public String home(@RequestParam(required = false) Long departmentId,
                        @RequestParam(required = false) String keyword,
                        Model model) {
         List<Topic> topics;
+        
+        // Lọc theo Khoa nếu có
         if (departmentId != null && departmentId > 0) {
             topics = topicService.getTopicsByDepartment(departmentId).stream()
                     .filter(t -> t.getStatus() == TopicStatus.PUBLISHED || t.getStatus() == TopicStatus.APPROVED)
                     .toList();
         } else {
+            // Mặc định lấy tất cả đề tài đã công bố
             topics = topicService.getTopicsByStatus(TopicStatus.PUBLISHED);
         }
 
+        // Lọc theo từ khóa tìm kiếm (tên, mã, giảng viên)
         if (keyword != null && !keyword.isBlank()) {
             String q = keyword.trim().toLowerCase();
             topics = topics.stream()
                     .filter(t -> (t.getTitle() != null && t.getTitle().toLowerCase().contains(q))
-                            || (t.getCode() != null && t.getCode().toLowerCase().contains(q))
-                            || (t.getLecturer() != null && t.getLecturer().getUser().getFullName().toLowerCase().contains(q)))
+                              || (t.getCode() != null && t.getCode().toLowerCase().contains(q))
+                              || (t.getLecturer() != null && t.getLecturer().getUser().getFullName().toLowerCase().contains(q)))
                     .toList();
         }
 

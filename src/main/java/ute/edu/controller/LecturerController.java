@@ -10,9 +10,11 @@ import ute.edu.enums.*;
 import ute.edu.repository.*;
 import ute.edu.service.*;
 import java.util.*;
+import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/lecturer")
+/** Controller giảng viên: đề xuất đề tài, hướng dẫn, báo cáo và chấm điểm. */
 public class LecturerController {
     private final TopicService topicService;
     private final RegistrationPeriodService periodService;
@@ -25,6 +27,7 @@ public class LecturerController {
     private final NotificationService notificationService;
     private final TopicAssignmentRepository assignmentRepository;
     private final ScoreRepository scoreRepository;
+    private final TopicEvaluationRepository evaluationRepository;
 
     public LecturerController(TopicService topicService,
                               RegistrationPeriodService periodService,
@@ -36,7 +39,8 @@ public class LecturerController {
                               ReportService reportService,
                               NotificationService notificationService,
                               TopicAssignmentRepository assignmentRepository,
-                              ScoreRepository scoreRepository) {
+                              ScoreRepository scoreRepository,
+                              TopicEvaluationRepository evaluationRepository) {
         this.topicService = topicService;
         this.periodService = periodService;
         this.departmentRepository = departmentRepository;
@@ -48,28 +52,48 @@ public class LecturerController {
         this.notificationService = notificationService;
         this.assignmentRepository = assignmentRepository;
         this.scoreRepository = scoreRepository;
+        this.evaluationRepository = evaluationRepository;
     }
 
+    /**
+     * Lấy thông tin giảng viên hiện tại từ phiên đăng nhập.
+     * @param session Phiên đăng nhập hiện tại
+     * @return Đối tượng Lecture nếu đã đăng nhập hợp lệ, ngược lại trả về null
+     */
     private Lecture getCurrentLecturer(HttpSession session) {
         UserAccount user = (UserAccount) session.getAttribute("user");
-        if (user == null) return null;
-        return lectureRepository.findByUserId(user.getId());
+        return (user != null) ? lectureRepository.findByUserId(user.getId()) : null;
     }
 
-    // 1. Lecturer Dashboard
+    /**
+     * Kiểm tra xem giảng viên có phải là người hướng dẫn của đề tài hay không.
+     * @param topic Đề tài cần kiểm tra
+     * @param lecturer Giảng viên
+     * @return true nếu giảng viên là người hướng dẫn hoặc đồng hướng dẫn
+     */
+    private boolean isSupervisorOf(Topic topic, Lecture lecturer) {
+        if (topic == null || lecturer == null) return false;
+        Long lecturerId = lecturer.getId();
+        return (topic.getLecturer() != null && topic.getLecturer().getId().equals(lecturerId))
+                || (topic.getCoLecturer() != null && topic.getCoLecturer().getId().equals(lecturerId))
+                || scoringService.isLecturerSupervisingTopic(lecturerId, topic.getId());
+    }
+
+    /**
+     * Hiển thị trang tổng quan (dashboard) của giảng viên.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view dashboard hoặc chuyển hướng đến trang đăng nhập
+     */
     @GetMapping({"", "/", "/dashboard"})
     public String dashboard(HttpSession session, Model model) {
         Lecture lecturer = getCurrentLecturer(session);
-        if (lecturer == null) {
-            return "redirect:/login";
-        }
+        if (lecturer == null) return "redirect:/login";
 
         List<Topic> myTopics = topicService.getTopicsByLecturer(lecturer.getId());
         List<ReviewCouncilMember> myCouncils = councilService.getCouncilsForLecturer(lecturer.getId());
-        List<TopicRegistration> allRegs = registrationService.getAll();
-        List<TopicRegistration> myGroupRegs = allRegs.stream()
-                .filter(r -> (r.getTopic().getLecturer() != null && r.getTopic().getLecturer().getId().equals(lecturer.getId()))
-                        || (r.getTopic().getCoLecturer() != null && r.getTopic().getCoLecturer().getId().equals(lecturer.getId())))
+        List<TopicRegistration> myGroupRegs = registrationService.getAll().stream()
+                .filter(r -> isSupervisorOf(r.getTopic(), lecturer))
                 .toList();
 
         model.addAttribute("lecturer", lecturer);
@@ -82,7 +106,12 @@ public class LecturerController {
         return "lecturer/dashboard";
     }
 
-    // 2. Topic Proposals & Management
+    /**
+     * Hiển thị danh sách các đề tài của giảng viên và form đề xuất đề tài.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view topics
+     */
     @GetMapping("/topics")
     public String topics(HttpSession session, Model model) {
         Lecture lecturer = getCurrentLecturer(session);
@@ -98,6 +127,16 @@ public class LecturerController {
         return "lecturer/topics";
     }
 
+    /**
+     * Xử lý lưu đề xuất đề tài mới của giảng viên.
+     * @param topic Đối tượng đề tài
+     * @param departmentId ID khoa
+     * @param periodId ID đợt đăng ký
+     * @param coLecturerId ID giảng viên đồng hướng dẫn (tùy chọn)
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang danh sách đề tài
+     */
     @PostMapping("/topics/save")
     public String saveTopic(@ModelAttribute Topic topic,
                             @RequestParam Long departmentId,
@@ -112,13 +151,15 @@ public class LecturerController {
             topic.setLecturer(lecturer);
             topic.setDepartment(departmentRepository.findById(departmentId).orElseThrow());
             topic.setRegistrationPeriod(periodService.findById(periodId));
+            
             if (coLecturerId != null && coLecturerId > 0 && !coLecturerId.equals(lecturer.getId())) {
                 topic.setCoLecturer(lectureRepository.findById(coLecturerId).orElse(null));
             } else {
                 topic.setCoLecturer(null);
             }
+            
             if (topic.getId() == null) {
-                topic.setStatus(TopicStatus.PENDING); // Sent for dean approval
+                topic.setStatus(TopicStatus.PENDING); // Gửi chờ Trưởng khoa duyệt
             }
             topicService.save(topic);
             redirectAttributes.addFlashAttribute("successMessage", "Đề xuất đề tài thành công! Chờ Trưởng khoa duyệt.");
@@ -128,6 +169,13 @@ public class LecturerController {
         return "redirect:/lecturer/topics";
     }
 
+    /**
+     * Xóa đề tài do giảng viên đề xuất.
+     * @param id ID đề tài cần xóa
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang danh sách đề tài
+     */
     @PostMapping("/topics/{id}/delete")
     public String deleteTopic(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         Lecture lecturer = getCurrentLecturer(session);
@@ -147,22 +195,34 @@ public class LecturerController {
         return "redirect:/lecturer/topics";
     }
 
-    // 3. Supervised Groups & Registrations Approval
+    /**
+     * Hiển thị danh sách các nhóm sinh viên đăng ký đề tài của giảng viên.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view groups
+     */
     @GetMapping("/groups")
     public String groups(HttpSession session, Model model) {
         Lecture lecturer = getCurrentLecturer(session);
         if (lecturer == null) return "redirect:/login";
 
-        List<TopicRegistration> allRegs = registrationService.getAll();
-        List<TopicRegistration> myGroupRegs = allRegs.stream()
-                .filter(r -> (r.getTopic().getLecturer() != null && r.getTopic().getLecturer().getId().equals(lecturer.getId()))
-                        || (r.getTopic().getCoLecturer() != null && r.getTopic().getCoLecturer().getId().equals(lecturer.getId())))
+        List<TopicRegistration> myGroupRegs = registrationService.getAll().stream()
+                .filter(r -> isSupervisorOf(r.getTopic(), lecturer))
                 .toList();
 
         model.addAttribute("registrations", myGroupRegs);
         return "lecturer/groups";
     }
 
+    /**
+     * Cập nhật trạng thái duyệt đăng ký đề tài của nhóm sinh viên.
+     * @param id ID đăng ký đề tài
+     * @param status Trạng thái mới
+     * @param rejectionReason Lý do từ chối (nếu có)
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang danh sách nhóm
+     */
     @PostMapping("/groups/{id}/status")
     public String updateRegistrationStatus(@PathVariable Long id,
                                            @RequestParam RegistrationStatus status,
@@ -179,7 +239,12 @@ public class LecturerController {
         return "redirect:/lecturer/groups";
     }
 
-    // 4. Councils & Topic Grading
+    /**
+     * Hiển thị danh sách hội đồng mà giảng viên là thành viên.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view councils
+     */
     @GetMapping("/councils")
     public String councils(HttpSession session, Model model) {
         Lecture lecturer = getCurrentLecturer(session);
@@ -194,6 +259,14 @@ public class LecturerController {
         return "lecturer/councils";
     }
 
+    /**
+     * Hiển thị giao diện chấm điểm cho một phân công đề tài.
+     * @param assignmentId ID phân công đề tài
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return view grading
+     */
     @GetMapping("/grading/{assignmentId}")
     public String gradingPage(@PathVariable Long assignmentId,
                               HttpSession session,
@@ -205,23 +278,17 @@ public class LecturerController {
         TopicAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phân công đề tài"));
 
-        // Anti-supervision check
         Topic topic = assignment.getTopicRegistration().getTopic();
-        boolean isSupervisor = false;
-        if (topic.getLecturer() != null && topic.getLecturer().getId().equals(lecturer.getId())) isSupervisor = true;
-        if (topic.getCoLecturer() != null && topic.getCoLecturer().getId().equals(lecturer.getId())) isSupervisor = true;
-        if (scoringService.isLecturerSupervisingTopic(lecturer.getId(), topic.getId())) isSupervisor = true;
+        boolean isSupervisor = isSupervisorOf(topic, lecturer);
 
-        // Find existing score if any
         ReviewCouncil council = assignment.getCouncil();
         List<ReviewCouncilMember> members = councilService.getMembers(council.getId());
         ReviewCouncilMember myMemberRecord = members.stream()
                 .filter(m -> m.getLecturer().getId().equals(lecturer.getId())).findFirst().orElse(null);
 
-        Score myScore = null;
-        if (myMemberRecord != null) {
-            myScore = scoreRepository.findByTopicAssignmentIdAndCouncilMemberId(assignmentId, myMemberRecord.getId()).orElse(null);
-        }
+        Score myScore = (myMemberRecord != null) 
+                ? scoreRepository.findByTopicAssignmentIdAndCouncilMemberId(assignmentId, myMemberRecord.getId()).orElse(null) 
+                : null;
 
         List<Report> reports = reportService.getReportsForRegistration(assignment.getTopicRegistration().getId());
 
@@ -234,6 +301,15 @@ public class LecturerController {
         return "lecturer/grading";
     }
 
+    /**
+     * Lưu điểm và nhận xét của giảng viên cho một phân công đề tài.
+     * @param assignmentId ID phân công đề tài
+     * @param score Điểm số
+     * @param comment Nhận xét
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang danh sách hội đồng
+     */
     @PostMapping("/grading/{assignmentId}/save")
     public String saveGrade(@PathVariable Long assignmentId,
                             @RequestParam Double score,
@@ -252,6 +328,14 @@ public class LecturerController {
         return "redirect:/lecturer/councils";
     }
 
+    /**
+     * Lưu điểm và nhận xét của giảng viên qua AJAX.
+     * @param assignmentId ID phân công đề tài
+     * @param score Điểm số
+     * @param comment Nhận xét
+     * @param session Phiên đăng nhập
+     * @return JSON kết quả xử lý
+     */
     @PostMapping(value = "/grading/{assignmentId}/save-ajax", produces = "application/json")
     @ResponseBody
     public Map<String, Object> saveGradeAjax(@PathVariable Long assignmentId,
@@ -280,36 +364,192 @@ public class LecturerController {
         return resp;
     }
 
-    // 5. Reports Review
+    /**
+     * Xem chi tiết báo cáo của nhóm sinh viên.
+     * @param id ID báo cáo
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return view report detail
+     */
+    @GetMapping("/reports/{id}")
+    public String reportDetail(@PathVariable Long id,
+                               HttpSession session,
+                               Model model,
+                               RedirectAttributes redirectAttributes) {
+        Lecture lecturer = getCurrentLecturer(session);
+        if (lecturer == null) return "redirect:/login";
+        try {
+            Report report = reportService.getById(id);
+            if (!isSupervisorOf(report.getTopicRegistration().getTopic(), lecturer)) {
+                throw new IllegalStateException("Bạn không có quyền xem báo cáo này");
+            }
+            TopicEvaluation evaluation = evaluationRepository
+                    .findByTopicIdAndReviewerId(report.getTopicRegistration().getTopic().getId(), lecturer.getId())
+                    .orElse(null);
+            model.addAttribute("report", report);
+            model.addAttribute("evaluation", evaluation);
+            model.addAttribute("lecturer", lecturer);
+            return "lecturer/report-detail";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/lecturer/reports";
+        }
+    }
+
+    /**
+     * Hiển thị danh sách các báo cáo của các nhóm do giảng viên hướng dẫn.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view reports
+     */
     @GetMapping("/reports")
     public String reports(HttpSession session, Model model) {
         Lecture lecturer = getCurrentLecturer(session);
         if (lecturer == null) return "redirect:/login";
 
-        List<Report> all = reportService.getAll();
-        List<Report> myReports = all.stream()
-                .filter(r -> {
-                    Topic t = r.getTopicRegistration().getTopic();
-                    return (t.getLecturer() != null && t.getLecturer().getId().equals(lecturer.getId()))
-                            || (t.getCoLecturer() != null && t.getCoLecturer().getId().equals(lecturer.getId()));
-                }).toList();
+        List<Report> myReports = reportService.getAll().stream()
+                .filter(r -> isSupervisorOf(r.getTopicRegistration().getTopic(), lecturer))
+                .toList();
 
         model.addAttribute("reports", myReports);
+        model.addAttribute("lecturer", lecturer);
         return "lecturer/reports";
     }
 
-    // 6. Notifications
+    /**
+     * Duyệt báo cáo của nhóm sinh viên.
+     * @param id ID báo cáo
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang chi tiết báo cáo
+     */
+    @PostMapping("/reports/{id}/approve")
+    public String approveReport(@PathVariable Long id,
+                                HttpSession session,
+                                RedirectAttributes redirectAttributes) {
+        Lecture lecturer = getCurrentLecturer(session);
+        if (lecturer == null) return "redirect:/login";
+        try {
+            Report report = reportService.getById(id);
+            if (!isSupervisorOf(report.getTopicRegistration().getTopic(), lecturer)) {
+                throw new IllegalStateException("Bạn không phải giảng viên hướng dẫn của đề tài này");
+            }
+            if (report.isApproved()) {
+                throw new IllegalStateException("Báo cáo đã được duyệt và đang bị khóa");
+            }
+            if (evaluationRepository.findByTopicIdAndReviewerId(report.getTopicRegistration().getTopic().getId(), lecturer.getId()).isEmpty()) {
+                throw new IllegalStateException("Vui lòng chấm điểm quá trình trước khi duyệt báo cáo");
+            }
+            reportService.approve(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã duyệt báo cáo cho nhóm.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi duyệt báo cáo: " + e.getMessage());
+        }
+        return "redirect:/lecturer/reports/" + id;
+    }
+
+    /**
+     * Từ chối báo cáo của nhóm sinh viên.
+     * @param id ID báo cáo
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang chi tiết báo cáo
+     */
+    @PostMapping("/reports/{id}/reject")
+    public String rejectReport(@PathVariable Long id,
+                               HttpSession session,
+                               RedirectAttributes redirectAttributes) {
+        Lecture lecturer = getCurrentLecturer(session);
+        if (lecturer == null) return "redirect:/login";
+        try {
+            Report report = reportService.getById(id);
+            if (!isSupervisorOf(report.getTopicRegistration().getTopic(), lecturer)) {
+                throw new IllegalStateException("Bạn không phải giảng viên hướng dẫn của đề tài này");
+            }
+            if (report.isApproved()) {
+                throw new IllegalStateException("Báo cáo đã được duyệt và đang bị khóa");
+            }
+            reportService.reject(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã từ chối báo cáo. Nhóm cần nộp lại báo cáo phù hợp.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi từ chối báo cáo: " + e.getMessage());
+        }
+        return "redirect:/lecturer/reports/" + id;
+    }
+
+    /**
+     * Lưu điểm đánh giá quá trình cho đề tài.
+     * @param topicId ID đề tài
+     * @param reportId ID báo cáo (nếu có)
+     * @param score Điểm số (0 - 10)
+     * @param comment Nhận xét
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang chi tiết báo cáo hoặc danh sách
+     */
+    @PostMapping("/reports/evaluation")
+    public String saveProcessEvaluation(@RequestParam Long topicId,
+                                        @RequestParam(required = false) Long reportId,
+                                        @RequestParam Double score,
+                                        @RequestParam(required = false) String comment,
+                                        HttpSession session,
+                                        RedirectAttributes redirectAttributes) {
+        Lecture lecturer = getCurrentLecturer(session);
+        if (lecturer == null) return "redirect:/login";
+        try {
+            Topic topic = topicService.findById(topicId);
+            if (!isSupervisorOf(topic, lecturer)) {
+                throw new IllegalStateException("Bạn không phải giảng viên hướng dẫn của đề tài này");
+            }
+            if (reportId != null && reportService.getById(reportId).isApproved()) {
+                throw new IllegalStateException("Báo cáo đã được duyệt, không thể chỉnh sửa điểm quá trình");
+            }
+            if (score < 0 || score > 10) {
+                throw new IllegalArgumentException("Điểm quá trình phải nằm trong khoảng 0 đến 10");
+            }
+            TopicEvaluation evaluation = evaluationRepository.findByTopicIdAndReviewerId(topicId, lecturer.getId())
+                    .orElseGet(TopicEvaluation::new);
+            evaluation.setTopic(topic);
+            evaluation.setReviewer(lecturer);
+            evaluation.setScore(score);
+            evaluation.setComment(comment);
+            evaluation.setEvaluatedAt(LocalDateTime.now());
+            evaluationRepository.save(evaluation);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã lưu điểm quá trình.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi lưu điểm quá trình: " + e.getMessage());
+        }
+        return reportId != null ? "redirect:/lecturer/reports/" + reportId : "redirect:/lecturer/reports";
+    }
+
+    /**
+     * Hiển thị danh sách thông báo dành cho giảng viên.
+     * @param notificationId ID thông báo cần đánh dấu đã đọc (tùy chọn)
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view notifications
+     */
     @GetMapping("/notifications")
-    public String notifications(HttpSession session, Model model) {
+    public String notifications(@RequestParam(required = false) Long notificationId,
+                                HttpSession session, Model model) {
         UserAccount user = (UserAccount) session.getAttribute("user");
+        if (notificationId != null) {
+            notificationService.markAsRead(notificationId, user);
+        }
         List<Notification> notifications = notificationService.getPublishedForRole("LECTURER");
-        notificationService.markAllAsRead(notifications, user);
         model.addAttribute("notifications", notifications);
         model.addAttribute("notificationService", notificationService);
         model.addAttribute("currentUser", user);
         return "lecturer/notifications";
     }
 
+    /**
+     * Đánh dấu một thông báo là đã đọc.
+     * @param id ID thông báo
+     * @param session Phiên đăng nhập
+     * @return Chuyển hướng về trang danh sách thông báo
+     */
     @PostMapping("/notifications/{id}/read")
     public String markNotificationRead(@PathVariable Long id, HttpSession session) {
         notificationService.markAsRead(id, (UserAccount) session.getAttribute("user"));

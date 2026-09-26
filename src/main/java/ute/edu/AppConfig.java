@@ -4,6 +4,7 @@ import java.util.Locale;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -33,10 +34,9 @@ public class AppConfig implements WebMvcConfigurer {
 
     @Bean
     public LocaleResolver localeResolver() {
-        CookieLocaleResolver localeResolver = new CookieLocaleResolver();
+        CookieLocaleResolver localeResolver = new CookieLocaleResolver("localeCookie");
         localeResolver.setDefaultLocale(Locale.forLanguageTag("vi"));
-        localeResolver.setCookieName("localeCookie");
-        localeResolver.setCookieMaxAge(3600);
+        localeResolver.setCookieMaxAge(java.time.Duration.ofSeconds(3600));
         return localeResolver;
     }
 
@@ -56,7 +56,11 @@ public class AppConfig implements WebMvcConfigurer {
                         "/", "/home", "/index",
                         "/login", "/quick-login", "/register", "/logout",
                         "/assets/**", "/static/**", "/error",
-                        "/reports/**", "/uploads/**"
-                );
+                        "/reports/**", "/uploads/**");
+    }
+
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

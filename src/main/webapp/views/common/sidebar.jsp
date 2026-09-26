@@ -49,15 +49,9 @@
                                     <div class="space-y-1">
                                         <a href="${ctx}/admin/topics"
                                             class="sidebar-link ${fn:contains(uri, '/admin/topics') || activeMenu == 'topics' ? 'is-active' : ''}"
-                                            title="Đề tài & Duyệt">
+                                            title="Duyệt đề tài">
                                             <i data-lucide="book-open-check"></i>
-                                            <span class="nav-label">Đề tài &amp; Duyệt</span>
-                                        </a>
-                                        <a href="${ctx}/admin/registrations"
-                                            class="sidebar-link ${fn:contains(uri, '/admin/registrations') || activeMenu == 'registrations' ? 'is-active' : ''}"
-                                            title="Đăng ký đề tài">
-                                            <i data-lucide="clipboard-pen-line"></i>
-                                            <span class="nav-label">Đăng ký đề tài</span>
+                                            <span class="nav-label">Duyệt đề tài</span>
                                         </a>
                                         <a href="${ctx}/admin/groups"
                                             class="sidebar-link ${fn:contains(uri, '/admin/groups') || activeMenu == 'groups' ? 'is-active' : ''}"

@@ -247,54 +247,7 @@ public class AdminController {
         return "admin/groups";
     }
 
-    // 5. Duyệt đăng ký nhóm SV thuộc quyền GVHD (/lecturer/groups)
-    @GetMapping("/registrations")
-    /** Hiển thị các yêu cầu đăng ký đề tài. */
-    public String registrations() {
-        return "redirect:/admin/topics";
-    }
-
-    @PostMapping("/registrations/{id}/status")
-    /** Cập nhật trạng thái duyệt đăng ký đề tài. */
-    public String updateRegistrationStatus(@PathVariable Long id,
-                                           @RequestParam RegistrationStatus status,
-                                           @RequestParam(required = false) String rejectionReason,
-                                           HttpSession session,
-                                           RedirectAttributes redirectAttributes) {
-        try {
-            UserAccount user = (UserAccount) session.getAttribute("user");
-            registrationService.updateStatus(id, status, user, rejectionReason);
-            redirectAttributes.addFlashAttribute("successMessage", "Cập nhật duyệt đăng ký thành công!");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi duyệt: " + e.getMessage());
-        }
-        return "redirect:/admin/topics";
-    }
-
-    @PostMapping(value = "/registrations/{id}/status-ajax", produces = "application/json")
-    @ResponseBody
-    /** Cập nhật trạng thái đăng ký và trả kết quả JSON. */
-    public Map<String, Object> updateRegistrationStatusAjax(@PathVariable Long id,
-                                                            @RequestParam RegistrationStatus status,
-                                                            @RequestParam(required = false) String rejectionReason,
-                                                            HttpSession session) {
-        Map<String, Object> resp = new HashMap<>();
-        try {
-            UserAccount user = (UserAccount) session.getAttribute("user");
-            TopicRegistration updated = registrationService.updateStatus(id, status, user, rejectionReason);
-            resp.put("success", true);
-            resp.put("status", updated.getStatus().name());
-            resp.put("message", status == RegistrationStatus.REJECTED
-                    ? "Đã từ chối đăng ký kèm lý do."
-                    : "Cập nhật duyệt đăng ký thành công!");
-        } catch (Exception e) {
-            resp.put("success", false);
-            resp.put("message", e.getMessage());
-        }
-        return resp;
-    }
-
-    // 6. Review Councils & Assignment
+    // 5. Review Councils & Assignment
     @GetMapping("/councils")
     /** Hiển thị hội đồng và danh sách đề tài đủ điều kiện phân công. */
     public String councils(Model model) {
