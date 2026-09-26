@@ -14,6 +14,7 @@ import java.util.*;
 
 @Controller
 @RequestMapping("/student")
+/** Controller sinh viên: quản lý nhóm, đăng ký đề tài, báo cáo và xem điểm. */
 public class StudentController {
     private final TopicService topicService;
     private final StudentRepository studentRepository;
@@ -57,13 +58,22 @@ public class StudentController {
         this.scoreRepository = scoreRepository;
     }
 
+    /**
+     * Lấy thông tin sinh viên hiện tại từ phiên đăng nhập.
+     * @param session Phiên đăng nhập hiện tại
+     * @return Đối tượng Student nếu đã đăng nhập hợp lệ, ngược lại trả về null
+     */
     private Student getCurrentStudent(HttpSession session) {
         UserAccount user = (UserAccount) session.getAttribute("user");
-        if (user == null) return null;
-        return studentRepository.findByUserId(user.getId());
+        return (user != null) ? studentRepository.findByUserId(user.getId()) : null;
     }
 
-    // 1. Student Dashboard
+    /**
+     * Hiển thị trang tổng quan (dashboard) của sinh viên.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view dashboard hoặc chuyển hướng đến trang đăng nhập
+     */
     @GetMapping({"", "/", "/dashboard"})
     public String dashboard(HttpSession session, Model model) {
         Student student = getCurrentStudent(session);
@@ -79,10 +89,12 @@ public class StudentController {
         if (myGroup != null) {
             myRegistration = registrationService.getActiveRegistrationForGroup(myGroup.getId());
             if (myRegistration != null) {
-                myAssignment = assignmentRepository.findFirstByTopicRegistrationId(myRegistration.getId()).orElse(null);
+                if (myRegistration.getStatus() == RegistrationStatus.APPROVED) {
+                    myAssignment = assignmentRepository.findFirstByTopicRegistrationId(myRegistration.getId()).orElse(null);
+                }
                 if (myAssignment != null) {
                     myScores = scoreRepository.findByTopicAssignmentId(myAssignment.getId());
-                    avgScore = scoringService.calculateAverageScore(myAssignment.getId());
+                    avgScore = scoringService.calculateFinalScore(myAssignment.getId());
                 }
             }
         }
@@ -99,7 +111,14 @@ public class StudentController {
         return "student/dashboard";
     }
 
-    // 2. Browse & Register Approved Topics
+    /**
+     * Hiển thị danh sách các đề tài đã duyệt, cho phép tìm kiếm và xem đề tài.
+     * @param departmentId ID khoa cần lọc (tùy chọn)
+     * @param keyword Từ khóa tìm kiếm đề tài (tùy chọn)
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view topics
+     */
     @GetMapping("/topics")
     public String topics(@RequestParam(required = false) Long departmentId,
                          @RequestParam(required = false) String keyword,
@@ -108,14 +127,14 @@ public class StudentController {
         Student student = getCurrentStudent(session);
         if (student == null) return "redirect:/login";
 
-        List<Topic> topics;
-        if (departmentId != null && departmentId > 0) {
-            topics = topicService.getTopicsByDepartment(departmentId).stream()
-                    .filter(t -> t.getStatus() == TopicStatus.PUBLISHED || t.getStatus() == TopicStatus.APPROVED)
-                    .toList();
-        } else {
-            topics = topicService.getTopicsByStatus(TopicStatus.PUBLISHED);
-        }
+        Long studentDepartmentId = student.getDepartment() != null
+            ? student.getDepartment().getId()
+            : null;
+        List<Topic> topics = studentDepartmentId == null
+            ? Collections.emptyList()
+            : topicService.getTopicsByDepartment(studentDepartmentId).stream()
+                .filter(t -> t.getStatus() == TopicStatus.PUBLISHED || t.getStatus() == TopicStatus.APPROVED)
+                .toList();
 
         if (keyword != null && !keyword.isBlank()) {
             String q = keyword.trim().toLowerCase();
@@ -132,7 +151,7 @@ public class StudentController {
         model.addAttribute("student", student);
         model.addAttribute("topics", topics);
         model.addAttribute("departments", departmentRepository.findAll());
-        model.addAttribute("selectedDept", departmentId);
+        model.addAttribute("selectedDept", studentDepartmentId);
         model.addAttribute("keyword", keyword);
         model.addAttribute("myGroup", myGroup);
         model.addAttribute("myRegistration", myRegistration);
@@ -141,6 +160,15 @@ public class StudentController {
         return "student/topics";
     }
 
+    /**
+     * Xử lý gửi yêu cầu đăng ký đề tài của nhóm (chỉ nhóm trưởng mới được đăng ký).
+     * @param topicId ID đề tài muốn đăng ký
+     * @param groupId ID nhóm sinh viên
+     * @param note Ghi chú cho đăng ký
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang danh sách đề tài
+     */
     @PostMapping("/topics/register")
     public String registerTopic(@RequestParam Long topicId,
                                 @RequestParam Long groupId,
@@ -152,13 +180,17 @@ public class StudentController {
 
         try {
             StudentGroup group = studentGroupRepository.findById(groupId).orElseThrow();
-            // Validate: Only leader can register topic
             if (!group.getLeader().getId().equals(student.getId())) {
                 redirectAttributes.addFlashAttribute("errorMessage", "Chỉ Nhóm trưởng mới có quyền đại diện nhóm đăng ký đề tài!");
                 return "redirect:/student/topics";
             }
 
             Topic topic = topicRepository.findById(topicId).orElseThrow();
+            if (student.getDepartment() == null
+                    || topic.getDepartment() == null
+                    || !student.getDepartment().getId().equals(topic.getDepartment().getId())) {
+                throw new IllegalStateException("Bạn chỉ được đăng ký đề tài thuộc khoa của mình!");
+            }
             registrationService.register(group, topic, note);
             redirectAttributes.addFlashAttribute("successMessage", "Gửi yêu cầu đăng ký đề tài '" + topic.getTitle() + "' thành công! Vui lòng chờ GVHD hoặc Khoa phê duyệt.");
         } catch (Exception e) {
@@ -167,7 +199,12 @@ public class StudentController {
         return "redirect:/student/topics";
     }
 
-    // 3. Group Management (Create, Invite via MSSV, Leave)
+    /**
+     * Hiển thị thông tin nhóm của sinh viên (tạo nhóm, thành viên, mời thêm sinh viên).
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view group
+     */
     @GetMapping("/group")
     public String group(HttpSession session, Model model) {
         Student student = getCurrentStudent(session);
@@ -186,6 +223,13 @@ public class StudentController {
         return "student/group";
     }
 
+    /**
+     * Xử lý tạo nhóm sinh viên mới. Sinh viên tạo nhóm tự động trở thành Nhóm trưởng.
+     * @param name Tên nhóm
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang quản lý nhóm
+     */
     @PostMapping("/group/create")
     public String createGroup(@RequestParam String name,
                               HttpSession session,
@@ -207,6 +251,14 @@ public class StudentController {
         return "redirect:/student/group";
     }
 
+    /**
+     * Thêm thành viên vào nhóm dựa trên Mã số sinh viên (MSSV).
+     * @param groupId ID nhóm
+     * @param studentCode MSSV của sinh viên cần thêm
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang quản lý nhóm
+     */
     @PostMapping("/group/add-member")
     public String addMember(@RequestParam Long groupId,
                             @RequestParam String studentCode,
@@ -218,17 +270,25 @@ public class StudentController {
         try {
             StudentGroup group = studentGroupRepository.findById(groupId).orElseThrow();
             if (!group.getLeader().getId().equals(student.getId())) {
-                redirectAttributes.addFlashAttribute("errorMessage", "Chỉ Nhóm trưởng mới có quyền mời thành viên!");
+                redirectAttributes.addFlashAttribute("errorMessage", "Chỉ nhóm trưởng mới có quyền mời thành viên!");
                 return "redirect:/student/group";
             }
-            groupService.addMemberByCode(groupId, studentCode);
-            redirectAttributes.addFlashAttribute("successMessage", "Đã thêm sinh viên " + studentCode + " vào nhóm thành công!");
+            Student addedStudent = groupService.addMemberByCode(groupId, studentCode);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã thêm sinh viên " + addedStudent.getUser().getFullName() + " (" + addedStudent.getStudentCode() + ") vào nhóm thành công!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Lỗi thêm thành viên: " + e.getMessage());
         }
         return "redirect:/student/group";
     }
 
+    /**
+     * Xóa một thành viên khỏi nhóm (chỉ dành cho Nhóm trưởng).
+     * @param groupId ID nhóm
+     * @param studentId ID sinh viên cần xóa
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang quản lý nhóm
+     */
     @PostMapping("/group/remove-member")
     public String removeMember(@RequestParam Long groupId,
                                @RequestParam Long studentId,
@@ -251,6 +311,11 @@ public class StudentController {
         return "redirect:/student/group";
     }
 
+    /**
+     * API tra cứu thông tin sinh viên theo MSSV.
+     * @param code MSSV cần tra cứu
+     * @return JSON chứa thông tin sinh viên nếu tìm thấy
+     */
     @GetMapping(value = "/api/students/lookup", produces = "application/json")
     @ResponseBody
     public Map<String, Object> lookupStudent(@RequestParam String code) {
@@ -277,7 +342,12 @@ public class StudentController {
         return resp;
     }
 
-    // 4. Report Submission (Leader Only)
+    /**
+     * Hiển thị trang nộp báo cáo và lịch sử báo cáo của nhóm.
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view reports
+     */
     @GetMapping("/reports")
     public String reports(HttpSession session, Model model) {
         Student student = getCurrentStudent(session);
@@ -298,6 +368,17 @@ public class StudentController {
         return "student/reports";
     }
 
+    /**
+     * Xử lý nộp báo cáo tiến độ/hoàn thành (chỉ dành cho Nhóm trưởng).
+     * @param registrationId ID đăng ký đề tài
+     * @param fileName Tên tệp
+     * @param file Tệp báo cáo (MultipartFile)
+     * @param filePath Đường dẫn tệp nếu có sẵn
+     * @param note Ghi chú kèm theo báo cáo
+     * @param session Phiên đăng nhập
+     * @param redirectAttributes Dùng để truyền thông báo flash
+     * @return Chuyển hướng về trang báo cáo
+     */
     @PostMapping("/reports/submit")
     public String submitReport(@RequestParam Long registrationId,
                                @RequestParam String fileName,
@@ -323,7 +404,12 @@ public class StudentController {
         return "redirect:/student/reports";
     }
 
-    // 5. Results & Defense Schedule
+    /**
+     * Hiển thị trang kết quả (điểm quá trình, điểm hội đồng, lịch bảo vệ).
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view results
+     */
     @GetMapping("/results")
     public String results(HttpSession session, Model model) {
         Student student = getCurrentStudent(session);
@@ -331,27 +417,43 @@ public class StudentController {
 
         StudentGroup myGroup = groupService.findGroupByStudent(student.getId());
         TopicRegistration registration = (myGroup != null) ? registrationService.getActiveRegistrationForGroup(myGroup.getId()) : null;
-        TopicAssignment assignment = (registration != null) ? assignmentRepository.findFirstByTopicRegistrationId(registration.getId()).orElse(null) : null;
+        TopicAssignment assignment = (registration != null && registration.getStatus() == RegistrationStatus.APPROVED)
+            ? assignmentRepository.findFirstByTopicRegistrationId(registration.getId()).orElse(null) : null;
+            
         List<Score> scores = (assignment != null) ? scoreRepository.findByTopicAssignmentId(assignment.getId()) : Collections.emptyList();
-        Double avgScore = (assignment != null) ? scoringService.calculateAverageScore(assignment.getId()) : null;
+        List<TopicEvaluation> processEvaluations = (assignment != null) ? scoringService.getProcessEvaluations(assignment.getId()) : Collections.emptyList();
+        Double processScore = (assignment != null) ? scoringService.calculateProcessAverageScore(assignment.getId()) : null;
+        Double avgScore = (assignment != null) ? scoringService.calculateFinalScore(assignment.getId()) : null;
 
         model.addAttribute("student", student);
         model.addAttribute("myGroup", myGroup);
         model.addAttribute("registration", registration);
         model.addAttribute("assignment", assignment);
         model.addAttribute("scores", scores);
+        model.addAttribute("processEvaluations", processEvaluations);
+        model.addAttribute("processScore", processScore);
         model.addAttribute("avgScore", avgScore);
+        model.addAttribute("scoringService", scoringService);
 
         return "student/results";
     }
 
-    // 6. Notifications
+    /**
+     * Hiển thị danh sách thông báo dành cho sinh viên.
+     * @param notificationId ID thông báo cần đánh dấu đã đọc (tùy chọn)
+     * @param session Phiên đăng nhập
+     * @param model Model Spring MVC
+     * @return view notifications
+     */
     @GetMapping("/notifications")
-    public String notifications(HttpSession session, Model model) {
+    public String notifications(@RequestParam(required = false) Long notificationId,
+                                HttpSession session, Model model) {
         Student student = getCurrentStudent(session);
         UserAccount user = (UserAccount) session.getAttribute("user");
+        if (notificationId != null) {
+            notificationService.markAsRead(notificationId, user);
+        }
         List<Notification> list = notificationService.getPublishedForRole("STUDENT");
-        notificationService.markAllAsRead(list, user);
 
         model.addAttribute("student", student);
         model.addAttribute("notifications", list);
@@ -361,6 +463,12 @@ public class StudentController {
         return "student/notifications";
     }
 
+    /**
+     * Đánh dấu một thông báo là đã đọc.
+     * @param id ID thông báo
+     * @param session Phiên đăng nhập
+     * @return Chuyển hướng về trang danh sách thông báo
+     */
     @PostMapping("/notifications/{id}/read")
     public String markNotificationRead(@PathVariable Long id, HttpSession session) {
         UserAccount user = (UserAccount) session.getAttribute("user");
