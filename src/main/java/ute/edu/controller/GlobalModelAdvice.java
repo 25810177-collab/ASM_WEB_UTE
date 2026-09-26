@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import ute.edu.entity.Notification;
 import ute.edu.entity.UserAccount;
+import ute.edu.helper.EnumLabelFormatter;
 import ute.edu.service.NotificationService;
 
 @ControllerAdvice
@@ -14,9 +15,16 @@ import ute.edu.service.NotificationService;
 public class GlobalModelAdvice {
 
     private final NotificationService notificationService;
+    private final EnumLabelFormatter enumLabel;
 
-    public GlobalModelAdvice(NotificationService notificationService) {
+    public GlobalModelAdvice(NotificationService notificationService, EnumLabelFormatter enumLabel) {
         this.notificationService = notificationService;
+        this.enumLabel = enumLabel;
+    }
+
+    @ModelAttribute("enumLabel")
+    public EnumLabelFormatter getEnumLabelFormatter() {
+        return enumLabel;
     }
 
     @ModelAttribute("unreadNotifCount")
@@ -35,13 +43,20 @@ public class GlobalModelAdvice {
         return unread;
     }
 
+    @ModelAttribute("unreadNotifyCount")
+    public int getUnreadNotifyCountAlias(HttpSession session) {
+        return getUnreadNotificationsCount(session);
+    }
+
     @ModelAttribute("topNotifications")
     /** Lấy một số thông báo mới nhất để hiển thị trên thanh điều hướng. */
     public List<Notification> getTopNotifications(HttpSession session) {
         UserAccount user = (UserAccount) session.getAttribute("user");
         if (user == null) return Collections.emptyList();
         String roleStr = user.getRole() != null ? user.getRole().name() : "STUDENT";
-        List<Notification> notifs = notificationService.getPublishedForRole(roleStr);
+        List<Notification> notifs = notificationService.getPublishedForRole(roleStr).stream()
+            .filter(notification -> !notificationService.isRead(notification.getId(), user.getId()))
+            .toList();
         if (notifs.size() > 5) {
             return notifs.subList(0, 5);
         }
