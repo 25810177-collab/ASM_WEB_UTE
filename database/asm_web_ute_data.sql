@@ -45,7 +45,8 @@ INSERT INTO `roles` (`id`, `code`, `name`) VALUES
 (1, 'ADMIN', 'Quản trị viên hệ thống'),
 (2, 'DEAN', 'Trưởng khoa CNTT'),
 (3, 'LECTURER', 'Giảng viên hướng dẫn / Phản biện'),
-(4, 'STUDENT', 'Sinh viên thực hiện đề tài');
+(4, 'STUDENT', 'Sinh viên thực hiện đề tài'),
+(5, 'DEPARTMENT_HEAD', 'Phụ trách khoa');
 
 -- -----------------------------------------------------------------------------
 -- 2. BẢNG DEPARTMENTS (Các khoa)
@@ -83,7 +84,8 @@ CREATE TABLE `users` (
     `enabled` BIT(1) NOT NULL DEFAULT b'1',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_users_role` CHECK (`role` IN ('ADMIN', 'DEAN', 'LECTURER', 'STUDENT', 'DEPARTMENT_HEAD'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Hash BCrypt được tạo từ mật khẩu demo ở trên.
@@ -250,7 +252,9 @@ CREATE TABLE `registration_periods` (
     `status` VARCHAR(50) NOT NULL DEFAULT 'OPEN',
     `active` BIT(1) NOT NULL DEFAULT b'1',
     `created_by` BIGINT NULL,
-    CONSTRAINT `fk_periods_users` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_periods_users` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_periods_type` CHECK (`type` IN ('COURSE', 'NCKH', 'PROJECT', 'THESIS', 'SUBJECT', 'RESEARCH', 'GRADUATION_PROJECT')),
+    CONSTRAINT `ck_periods_status` CHECK (`status` IN ('DRAFT', 'OPEN', 'CLOSED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `registration_periods` (`id`, `name`, `type`, `lecturer_start_date`, `lecturer_end_date`, `student_start_date`, `student_end_date`, `reviewer_deadline`, `council_report_date`, `status`, `active`, `created_by`) VALUES
@@ -278,7 +282,8 @@ CREATE TABLE `topics` (
     CONSTRAINT `fk_topics_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
     CONSTRAINT `fk_topics_periods` FOREIGN KEY (`reg_period_id`) REFERENCES `registration_periods` (`id`),
     CONSTRAINT `fk_topics_lecturers` FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers` (`id`),
-    CONSTRAINT `fk_topics_co_lecturers` FOREIGN KEY (`co_lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_topics_co_lecturers` FOREIGN KEY (`co_lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_topics_status` CHECK (`status` IN ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'PUBLISHED', 'ASSIGNED', 'COMPLETED', 'CANCELLED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `topics` (`id`, `code`, `title`, `description`, `requirements`, `department_id`, `reg_period_id`, `lecturer_id`, `co_lecturer_id`, `max_students`, `status`) VALUES
@@ -299,7 +304,8 @@ CREATE TABLE `topic_supervisors` (
     `role` VARCHAR(50) NOT NULL, -- PRIMARY, CO_SUPERVISOR
     UNIQUE KEY `uk_topic_lecturer` (`topic_id`, `lecturer_id`),
     CONSTRAINT `fk_supervisors_topics` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_supervisors_lecturers` FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_supervisors_lecturers` FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `ck_supervisors_role` CHECK (`role` IN ('PRIMARY', 'CO_SUPERVISOR'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `topic_supervisors` (`id`, `topic_id`, `lecturer_id`, `role`) VALUES
@@ -324,7 +330,8 @@ CREATE TABLE `student_groups` (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_groups_leaders` FOREIGN KEY (`leader_id`) REFERENCES `students` (`id`),
     CONSTRAINT `fk_groups_periods` FOREIGN KEY (`reg_period_id`) REFERENCES `registration_periods` (`id`),
-    CONSTRAINT `fk_groups_topics` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_groups_topics` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_groups_status` CHECK (`status` IN ('INCOMPLETE', 'READY', 'ASSIGNED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `student_groups` (`id`, `name`, `leader_id`, `reg_period_id`, `topic_id`, `status`) VALUES
@@ -367,7 +374,8 @@ CREATE TABLE `topic_registrations` (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_registrations_groups` FOREIGN KEY (`group_id`) REFERENCES `student_groups` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_registrations_topics` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`),
-    CONSTRAINT `fk_registrations_users` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_registrations_users` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_registrations_status` CHECK (`status` IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `topic_registrations` (`id`, `group_id`, `topic_id`, `approved_by`, `status`, `note`, `approved_at`) VALUES
@@ -389,7 +397,8 @@ CREATE TABLE `reports` (
     `approved_at` DATETIME NULL,
     `review_status` VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     CONSTRAINT `fk_reports_registrations` FOREIGN KEY (`topic_registration_id`) REFERENCES `topic_registrations` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_reports_students` FOREIGN KEY (`submitted_by`) REFERENCES `students` (`id`)
+    CONSTRAINT `fk_reports_students` FOREIGN KEY (`submitted_by`) REFERENCES `students` (`id`),
+    CONSTRAINT `ck_reports_review_status` CHECK (`review_status` IN ('PENDING', 'APPROVED', 'REJECTED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `reports` (`id`, `topic_registration_id`, `submitted_by`, `file_name`, `file_path`, `note`, `submitted_at`) VALUES
@@ -414,7 +423,8 @@ CREATE TABLE `councils` (
     CONSTRAINT `fk_councils_periods` FOREIGN KEY (`reg_period_id`) REFERENCES `registration_periods` (`id`),
     CONSTRAINT `fk_councils_departments` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_councils_chairmen` FOREIGN KEY (`chairman_id`) REFERENCES `lecturers` (`id`),
-    CONSTRAINT `fk_councils_secretaries` FOREIGN KEY (`secretary_id`) REFERENCES `lecturers` (`id`)
+    CONSTRAINT `fk_councils_secretaries` FOREIGN KEY (`secretary_id`) REFERENCES `lecturers` (`id`),
+    CONSTRAINT `ck_councils_status` CHECK (`status` IN ('PLANNED', 'ONGOING', 'COMPLETED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `councils` (`id`, `code`, `name`, `reg_period_id`, `department_id`, `chairman_id`, `secretary_id`, `council_date`, `location`, `status`) VALUES
@@ -432,7 +442,8 @@ CREATE TABLE `council_members` (
     `joined_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_council_lecturer` (`council_id`, `lecturer_id`),
     CONSTRAINT `fk_council_members_councils` FOREIGN KEY (`council_id`) REFERENCES `councils` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_council_members_lecturers` FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_council_members_lecturers` FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `ck_council_members_role` CHECK (`role` IN ('CHAIRMAN', 'SECRETARY', 'MEMBER'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- HD01: Chủ tịch Lê Hoàng Cường (GV003), Thư ký Phạm Đức Dũng (GV004), Ủy viên Trần Thị Bích (GV002)
@@ -456,7 +467,8 @@ CREATE TABLE `topic_assignments` (
     `assigned_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_council_registration` (`council_id`, `topic_registration_id`),
     CONSTRAINT `fk_assignments_councils` FOREIGN KEY (`council_id`) REFERENCES `councils` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_assignments_registrations` FOREIGN KEY (`topic_registration_id`) REFERENCES `topic_registrations` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_assignments_registrations` FOREIGN KEY (`topic_registration_id`) REFERENCES `topic_registrations` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `ck_assignments_status` CHECK (`status` IN ('ASSIGNED', 'EVALUATED'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `topic_assignments` (`id`, `council_id`, `topic_registration_id`, `status`) VALUES
@@ -496,7 +508,8 @@ CREATE TABLE `notifications` (
     `published_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `created_by` BIGINT NULL,
-    CONSTRAINT `fk_notifications_users` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_notifications_users` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `ck_notifications_type` CHECK (`type` IN ('ALL', 'STUDENT', 'LECTURER'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `notifications` (`id`, `title`, `content`, `type`, `published`, `published_at`, `created_by`) VALUES
@@ -516,10 +529,6 @@ CREATE TABLE `announcement_reads` (
     CONSTRAINT `fk_reads_notifications` FOREIGN KEY (`notification_id`) REFERENCES `notifications` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_reads_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `announcement_reads` (`id`, `notification_id`, `user_id`, `read_at`) VALUES
-(1, 1, 7, '2026-08-15 11:20:00'),
-(2, 2, 7, '2026-08-16 14:05:00');
 
 -- ----------------------------------------------------------------------------
 -- 19. BỔ SUNG DỮ LIỆU NGHIỆP VỤ ĐỦ 20 ĐỀ TÀI
@@ -660,15 +669,6 @@ SELECT `number`, CONCAT('Thông báo học vụ số ', `number`),
        CONCAT('Nội dung thông báo dành cho người dùng của hệ thống UTE, số ', `number`),
        CASE `number` % 3 WHEN 0 THEN 'ALL' WHEN 1 THEN 'STUDENT' ELSE 'LECTURER' END,
        b'1', DATE_ADD('2026-08-01 08:00:00', INTERVAL `number` DAY), 1
-FROM `seq`;
-
-INSERT IGNORE INTO `announcement_reads` (`id`, `notification_id`, `user_id`, `read_at`)
-WITH RECURSIVE `seq` AS (
-    SELECT 3 AS `number`
-    UNION ALL SELECT `number` + 1 FROM `seq` WHERE `number` < 100
-)
-SELECT `number`, `number`, 8 + ((`number` - 3) % 100),
-       DATE_ADD('2026-08-10 08:00:00', INTERVAL `number` DAY)
 FROM `seq`;
 
 -- Hoàn tất khởi tạo dữ liệu mẫu!
