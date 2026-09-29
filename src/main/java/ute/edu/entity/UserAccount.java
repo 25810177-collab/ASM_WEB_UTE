@@ -1,0 +1,83 @@
+package ute.edu.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "users")
+/** Bảng users: lưu tài khoản đăng nhập và thông tin cơ bản của người dùng. */
+public class UserAccount {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // Khóa chính của tài khoản.
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    // Tên đăng nhập duy nhất.
+    private String username;
+
+    @Column(nullable = false)
+    // Mật khẩu đã được mã hóa.
+    private String password;
+
+    @ManyToOne
+    @JoinColumn(name = "role_id")
+    // Vai trò dùng để phân quyền truy cập.
+    private Role permissionRole;
+
+    @Column(nullable = false)
+    // Họ và tên người dùng.
+    private String fullName;
+
+    @Column(nullable = false, unique = true)
+    // Địa chỉ email liên hệ.
+    private String email;
+
+    @Column(nullable = false)
+    // Số điện thoại liên hệ.
+    private String phone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    // Loại người dùng trong nghiệp vụ: quản trị, khoa, giảng viên hoặc sinh viên.
+    private ute.edu.enums.UserRole role;
+
+    @Column(nullable = false)
+    // Tài khoản có được phép đăng nhập hay không.
+    private boolean enabled = true;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    public UserAccount() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    /** Mã số SV/GV dùng trên header (EL: ${sessionScope.user.code}). */
+    public String getCode() {
+        return username;
+    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public Role getPermissionRole() { return permissionRole; }
+    public void setPermissionRole(Role permissionRole) { this.permissionRole = permissionRole; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public ute.edu.enums.UserRole getRole() { return role; }
+    public void setRole(ute.edu.enums.UserRole role) { this.role = role; }
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}
