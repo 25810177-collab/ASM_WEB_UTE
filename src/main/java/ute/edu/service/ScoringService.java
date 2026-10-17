@@ -18,19 +18,22 @@ public class ScoringService {
     private final TopicSupervisorRepository supervisorRepository;
     private final ReviewCouncilRepository councilRepository;
     private final TopicEvaluationRepository evaluationRepository;
+    private final MailerService mailerService;
 
     public ScoringService(ScoreRepository scoreRepository,
-                          TopicAssignmentRepository assignmentRepository,
-                          ReviewCouncilMemberRepository memberRepository,
-                          TopicSupervisorRepository supervisorRepository,
-                          ReviewCouncilRepository councilRepository,
-                          TopicEvaluationRepository evaluationRepository) {
+            TopicAssignmentRepository assignmentRepository,
+            ReviewCouncilMemberRepository memberRepository,
+            TopicSupervisorRepository supervisorRepository,
+            ReviewCouncilRepository councilRepository,
+            TopicEvaluationRepository evaluationRepository,
+            MailerService mailerService) {
         this.scoreRepository = scoreRepository;
         this.assignmentRepository = assignmentRepository;
         this.memberRepository = memberRepository;
         this.supervisorRepository = supervisorRepository;
         this.councilRepository = councilRepository;
         this.evaluationRepository = evaluationRepository;
+        this.mailerService = mailerService;
     }
 
     /** Lấy các điểm hội đồng của một phân công. */
@@ -46,7 +49,7 @@ public class ScoringService {
     @Transactional
     /** Lưu hoặc cập nhật điểm của một thành viên hội đồng. */
     public Score gradeTopic(Long assignmentId, Long lecturerId, Double scoreValue, String comment) {
-        if (scoreValue == null || scoreValue < 0 || scoreValue > 10) {
+        if (scoreValue == null || !Double.isFinite(scoreValue) || scoreValue < 0 || scoreValue > 10) {
             throw new IllegalArgumentException("Điểm số phải từ 0 đến 10");
         }
 
@@ -55,6 +58,20 @@ public class ScoringService {
 
         Topic topic = assignment.getTopicRegistration().getTopic();
         Long councilId = assignment.getCouncil().getId();
+        assignment.setCouncil(councilRepository.findForUpdate(councilId).orElseThrow());
+
+        if (assignment.getCouncil().getStatus() == CouncilStatus.COMPLETED) {
+            throw new IllegalStateException("Hội đồng đã chốt điểm, không thể sửa điểm!");
+        }
+        var councilDate = assignment.getCouncil().getCouncilDate();
+        var period = topic.getRegistrationPeriod();
+        if (councilDate == null || RegistrationPeriodService.today().isBefore(councilDate)) {
+            throw new IllegalStateException("Chưa đến ngày báo cáo hội đồng, không thể nhập điểm!");
+        }
+        if (period != null && period.getReviewerDeadline() != null
+                && RegistrationPeriodService.today().isAfter(period.getReviewerDeadline())) {
+            throw new IllegalStateException("Đã hết hạn GVPB nộp điểm!");
+        }
 
         // 1. Check anti-supervision constraint
         boolean isSupervisor = false;
@@ -69,7 +86,8 @@ public class ScoringService {
         }
 
         if (isSupervisor) {
-            throw new IllegalStateException("RÀNG BUỘC BẢO MẬT: Giảng viên hướng dẫn không được phép chấm điểm hoặc phản biện cho đề tài này!");
+            throw new IllegalStateException(
+                    "RÀNG BUỘC BẢO MẬT: Giảng viên hướng dẫn không được phép chấm điểm hoặc phản biện cho đề tài này!");
         }
 
         // 2. Find council member record
@@ -161,15 +179,22 @@ public class ScoringService {
     @Transactional
     /** Chốt hội đồng khi tất cả thành viên đã nhập điểm. */
     public void finalizeCouncil(Long councilId) {
-        ReviewCouncil council = councilRepository.findById(councilId)
+        ReviewCouncil council = councilRepository.findForUpdate(councilId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Hội đồng"));
+        if (council.getStatus() == CouncilStatus.COMPLETED)
+            throw new IllegalStateException("Hội đồng đã công bố điểm!");
+        if (council.getCouncilDate() == null || RegistrationPeriodService.today().isBefore(council.getCouncilDate())) {
+            throw new IllegalStateException("Chưa đến ngày báo cáo, không thể công bố điểm!");
+        }
 
         List<ReviewCouncilMember> members = memberRepository.findByCouncilId(councilId);
-        if (members.size() < 3) {
+        if (members.size() < 3 || members.size() > 5) {
             throw new IllegalStateException("Hội đồng phải có ít nhất 3 thành viên trước khi công bố điểm");
         }
 
-        List<TopicAssignment> assignments = assignmentRepository.findByCouncilId(councilId);
+        List<TopicAssignment> assignments = assignmentRepository.findByCouncilIdOrderByAssignedAtDescIdDesc(councilId);
+        if (assignments.isEmpty())
+            throw new IllegalStateException("Hội đồng chưa có đề tài để công bố kết quả!");
         for (TopicAssignment assignment : assignments) {
             int scoreCount = scoreRepository.findByTopicAssignmentId(assignment.getId()).size();
             if (scoreCount < members.size()) {
@@ -179,6 +204,36 @@ public class ScoringService {
             }
             assignment.setStatus(AssignmentStatus.EVALUATED);
             assignmentRepository.save(assignment);
+
+            Double finalScore = calculateFinalScore(assignment.getId());
+            if (finalScore == null || !Double.isFinite(finalScore)) {
+                throw new IllegalStateException("Chưa đủ điểm quá trình và điểm hội đồng hợp lệ!");
+            }
+            assignment.getTopicRegistration().getTopic().setStatus(ute.edu.enums.TopicStatus.COMPLETED);
+            List<String> emails = new java.util.ArrayList<>();
+            for (StudentGroupMember member : assignment.getTopicRegistration().getGroup().getMembers()) {
+                if (member.getStudent().getUser() != null && member.getStudent().getUser().getEmail() != null) {
+                    emails.add(member.getStudent().getUser().getEmail());
+                }
+            }
+            if (!emails.isEmpty() && finalScore != null) {
+                String subject = "Kết quả bảo vệ đề tài: " + assignment.getTopicRegistration().getTopic().getTitle();
+                String body = "Chào nhóm,<br><br>Điểm tổng kết bảo vệ đề tài của nhóm bạn là: <b>" + finalScore
+                        + "</b>.<br>Chúc mừng các bạn đã hoàn thành!<br><br>Khoa CNTT.";
+                String[] recipients = emails.toArray(new String[0]);
+                if (org.springframework.transaction.support.TransactionSynchronizationManager
+                        .isSynchronizationActive()) {
+                    org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                            new org.springframework.transaction.support.TransactionSynchronization() {
+                                @Override
+                                public void afterCommit() {
+                                    mailerService.queue(recipients, subject, body);
+                                }
+                            });
+                } else {
+                    mailerService.queue(recipients, subject, body);
+                }
+            }
         }
 
         council.setStatus(CouncilStatus.COMPLETED);

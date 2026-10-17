@@ -1,10 +1,11 @@
 package ute.edu.service;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Queue;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,9 +18,14 @@ import jakarta.mail.internet.MimeMessage;
 @Service
 /** Cài đặt gửi email qua SMTP và xử lý hàng đợi định kỳ. */
 public class MailerServiceImp implements MailerService {
-	List<MailInfo> listEmails = new ArrayList<>();
-	@Autowired
-	JavaMailSender sender;
+	final Queue<MailInfo> listEmails = new ConcurrentLinkedQueue<>();
+	private final JavaMailSender sender;
+	private final String defaultFrom;
+
+	public MailerServiceImp(JavaMailSender sender, @Value("${spring.mail.username}") String defaultFrom) {
+		this.sender = sender;
+		this.defaultFrom = defaultFrom;
+	}
 
 	@Override
 	/** Tạo MIME email, thêm người nhận/tệp đính kèm và gửi qua SMTP. */
@@ -28,11 +34,12 @@ public class MailerServiceImp implements MailerService {
 		// Sử dụng Helper để thiết lập các thông tin cần thiết cho message
 		MimeMessageHelper helper = new MimeMessageHelper(message, true, "utf-8");
 
-		helper.setFrom(mail.getFrom());
+		String from = mail.getFrom() == null || mail.getFrom().isBlank() ? defaultFrom : mail.getFrom();
+		helper.setFrom(from);
 		helper.setTo(mail.getTo());
 		helper.setSubject(mail.getSubject());
 		helper.setText(mail.getBody(), true);
-		helper.setReplyTo(mail.getFrom());
+		helper.setReplyTo(from);
 
 		String[] cc = mail.getCc();
 		// Kiểm tra mảng cc có tồn tại hay không
@@ -77,8 +84,8 @@ public class MailerServiceImp implements MailerService {
 	@Scheduled(fixedDelay = 5000)
 	/** Cứ 5 giây lấy email trong hàng đợi để gửi. */
 	public void run() {
-		while (!listEmails.isEmpty()) {
-			MailInfo mail = listEmails.remove(0);
+		MailInfo mail;
+		while ((mail = listEmails.poll()) != null) {
 			try {
 				this.send(mail);
 			} catch (Exception e) {
