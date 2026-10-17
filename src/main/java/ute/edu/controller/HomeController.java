@@ -61,12 +61,12 @@ public class HomeController {
         
         // Lọc theo Khoa nếu có
         if (departmentId != null && departmentId > 0) {
-            topics = topicService.getTopicsByDepartment(departmentId).stream()
-                    .filter(t -> t.getStatus() == TopicStatus.PUBLISHED || t.getStatus() == TopicStatus.APPROVED)
+            topics = topicService.getAvailableTopics().stream()
+                    .filter(t -> t.getDepartment() != null && departmentId.equals(t.getDepartment().getId()))
                     .toList();
         } else {
             // Mặc định lấy tất cả đề tài đã công bố
-            topics = topicService.getTopicsByStatus(TopicStatus.PUBLISHED);
+            topics = topicService.getAvailableTopics();
         }
 
         // Lọc theo từ khóa tìm kiếm (tên, mã, giảng viên)

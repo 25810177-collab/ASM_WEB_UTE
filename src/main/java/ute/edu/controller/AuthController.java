@@ -10,12 +10,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import ute.edu.dto.RegisterRequest;
 import ute.edu.enums.UserRole;
 import ute.edu.entity.UserAccount;
 import ute.edu.service.AuthService;
 import ute.edu.service.AuthTokenService;
-import ute.edu.repository.UserAccountRepository;
 import ute.edu.repository.StudentRepository;
 import ute.edu.repository.LectureRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +22,6 @@ import org.springframework.beans.factory.annotation.Value;
 /** Controller xử lý đăng nhập, đăng ký và đăng xuất tài khoản. */
 public class AuthController {
     private final AuthService authService;
-    private final UserAccountRepository userRepository;
     private final StudentRepository studentRepository;
     private final LectureRepository lectureRepository;
     private final AuthTokenService authTokenService;
@@ -33,12 +30,10 @@ public class AuthController {
     private boolean quickLoginEnabled;
 
     public AuthController(AuthService authService,
-            UserAccountRepository userRepository,
             StudentRepository studentRepository,
             LectureRepository lectureRepository,
             AuthTokenService authTokenService) {
         this.authService = authService;
-        this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.lectureRepository = lectureRepository;
         this.authTokenService = authTokenService;
@@ -98,7 +93,7 @@ public class AuthController {
             return "redirect:/login";
         }
         UserAccount user = authService.findByUsernameOrEmail(username);
-        if (user != null) {
+        if (user != null && user.isEnabled()) {
             request.changeSessionId();
             setupSession(session, user);
             writeTokenCookie(response, request, authTokenService.issue(user));
@@ -107,35 +102,6 @@ public class AuthController {
         return "redirect:/login";
     }
 
-    @GetMapping("/register")
-    /** Hiển thị trang đăng ký tài khoản. */
-    public String registerPage(Model model) {
-        model.addAttribute("roles", new UserRole[] { UserRole.STUDENT });
-        model.addAttribute("registerRequest", new RegisterRequest());
-        return "register";
-    }
-
-    @PostMapping("/register")
-    /** Kiểm tra và lưu tài khoản mới. */
-    public String register(RegisterRequest request, Model model, RedirectAttributes redirectAttributes) {
-        try {
-            UserAccount user = new UserAccount();
-            user.setUsername(request.getUsername().trim());
-            user.setPassword(request.getPassword());
-            user.setFullName(request.getFullName().trim());
-            user.setEmail(request.getEmail().trim());
-            user.setPhone(request.getPhone().trim());
-            user.setRole(UserRole.valueOf(request.getRole()));
-
-            authService.register(user);
-            redirectAttributes.addFlashAttribute("successMessage", "Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
-            return "redirect:/login";
-        } catch (Exception e) {
-            model.addAttribute("error", "Đăng ký thất bại: " + e.getMessage());
-            model.addAttribute("roles", new UserRole[] { UserRole.STUDENT });
-            return "register";
-        }
-    }
 
     @GetMapping("/logout")
     /** Hủy phiên hiện tại và chuyển về trang đăng nhập. */
@@ -145,6 +111,7 @@ public class AuthController {
             RedirectAttributes redirectAttributes) {
         authTokenService.revoke(getToken(request));
         deleteTokenCookie(response, request);
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
         session.invalidate();
         redirectAttributes.addFlashAttribute("infoMessage", "Bạn đã đăng xuất khỏi hệ thống.");
         return "redirect:/login";
@@ -162,17 +129,26 @@ public class AuthController {
 
     private void writeTokenCookie(HttpServletResponse response, HttpServletRequest request, String token) {
         String secure = request.isSecure() ? "; Secure" : "";
+        String contextPath = request.getContextPath();
+        String path = (contextPath == null || contextPath.isEmpty()) ? "/" : contextPath;
         response.addHeader("Set-Cookie", AuthTokenService.COOKIE_NAME + "=" + token
                 + "; Max-Age=" + authTokenService.getTokenTtlSeconds()
-                + "; Path=" + request.getContextPath() + "; HttpOnly; SameSite=Lax" + secure);
+                + "; Path=" + path + "; HttpOnly; SameSite=Lax" + secure);
     }
 
     private void deleteTokenCookie(HttpServletResponse response, HttpServletRequest request) {
+        String contextPath = request.getContextPath();
+        String path = (contextPath == null || contextPath.isEmpty()) ? "/" : contextPath;
         response.addHeader("Set-Cookie", AuthTokenService.COOKIE_NAME
-                + "=; Max-Age=0; Path=" + request.getContextPath() + "; HttpOnly; SameSite=Lax");
+                + "=; Max-Age=0; Path=" + path + "; HttpOnly; SameSite=Lax");
     }
 
     private void setupSession(HttpSession session, UserAccount user) {
+        session.removeAttribute("studentProfile");
+        session.removeAttribute("lecturerProfile");
+        session.removeAttribute("googleRegistrationEmail");
+        session.removeAttribute("googleRegistrationName");
+        session.removeAttribute("googleRegistrationToken");
         session.setAttribute("user", user);
         session.setAttribute("userRole", user.getRole());
         if (user.getRole() == UserRole.STUDENT) {
