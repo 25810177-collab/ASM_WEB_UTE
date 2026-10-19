@@ -67,6 +67,9 @@ public class DataInitializer implements InitializingBean {
             if (sql.startsWith("\uFEFF")) {
                 sql = sql.substring(1);
             }
+            // Bỏ lệnh tạo/chọn database: luôn nạp vào database đang kết nối
+            // (trên hosting cPanel tên database khác asm_web_ute và không có quyền CREATE DATABASE).
+            sql = sql.replaceAll("(?im)^\\s*(CREATE\\s+DATABASE|USE)\\s[^;]*;", "");
             Set<String> existing = new HashSet<>(jdbcTemplate.queryForList(
                     "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'",
                     String.class));

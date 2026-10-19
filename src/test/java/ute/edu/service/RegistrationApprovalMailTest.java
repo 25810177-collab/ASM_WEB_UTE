@@ -105,18 +105,19 @@ class RegistrationApprovalMailTest {
 
     @Test
     void rejectionRollbackDoesNotSendMail() {
-        service.updateStatus(1L, RegistrationStatus.REJECTED, null, null);
+        service.updateStatus(1L, RegistrationStatus.REJECTED, null, "Chưa phù hợp hướng nghiên cứu");
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(callback -> callback.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
         verifyNoInteractions(mailer);
     }
 
     @Test
-    void rejectionWithoutReasonUsesClearFallback() {
-        service.updateStatus(1L, RegistrationStatus.REJECTED, null, " ");
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-        verify(mailer).queue(any(String[].class), anyString(),
-                argThat(body -> body.contains("Giảng viên chưa cung cấp lý do.")));
+    void rejectionWithoutReasonIsRefusedAndSendsNoMail() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateStatus(1L, RegistrationStatus.REJECTED, null, " "));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateStatus(1L, RegistrationStatus.REJECTED, null, null));
+        verifyNoInteractions(mailer);
     }
 
     @Test

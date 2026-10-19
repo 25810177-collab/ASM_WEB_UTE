@@ -131,6 +131,11 @@ public class TopicRegistrationService {
         if (status != RegistrationStatus.APPROVED && status != RegistrationStatus.REJECTED) {
             throw new IllegalArgumentException("Chỉ được duyệt hoặc từ chối đăng ký đang chờ!");
         }
+        // Từ chối bắt buộc có lý do: kiểm tra cả ở máy chủ, không chỉ dựa vào hộp nhập trên trình duyệt
+        if (status == RegistrationStatus.REJECTED && (rejectionReason == null || rejectionReason.isBlank())) {
+            throw new IllegalArgumentException("Bắt buộc nhập lý do khi từ chối nhóm đăng ký!");
+        }
+        rejectionReason = rejectionReason == null ? null : rejectionReason.trim();
         TopicRegistration registration = registrationRepository.findForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đăng ký đề tài"));
         Topic topic = topicRepository.findForUpdate(registration.getTopic().getId()).orElseThrow();

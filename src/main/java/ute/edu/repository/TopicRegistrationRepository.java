@@ -2,8 +2,6 @@ package ute.edu.repository;
 
 import java.util.List;
 import java.util.Optional;
-import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,8 +11,8 @@ import ute.edu.entity.TopicRegistration;
 /** Truy vấn bảng topic_registrations (đăng ký đề tài). */
 public interface TopicRegistrationRepository extends JpaRepository<TopicRegistration, Long> {
     boolean existsByGroupIdAndStatusIn(Long groupId, java.util.Collection<RegistrationStatus> statuses);
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from TopicRegistration r where r.id = :id")
+    /** Khóa dòng đến hết giao dịch (SELECT ... FOR UPDATE chạy được trên cả MySQL và MariaDB). */
+    @Query(value = "SELECT * FROM topic_registrations WHERE id = :id FOR UPDATE", nativeQuery = true)
     Optional<TopicRegistration> findForUpdate(@Param("id") Long id);
     boolean existsByTopicIdAndStatus(Long topicId, RegistrationStatus status);
     /** Lấy đăng ký theo trạng thái duyệt. */

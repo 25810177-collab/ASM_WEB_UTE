@@ -86,12 +86,10 @@ public class ReportDownloadController {
     private boolean canRead(UserAccount user, Report report) {
         TopicRegistration registration = report.getTopicRegistration();
         Topic topic = registration.getTopic();
-        if (user.getRole() == UserRole.ADMIN) return true;
-        if (user.getRole() == UserRole.DEAN || user.getRole() == UserRole.DEPARTMENT_HEAD) {
-            Lecture profile = lecturers.findByUserId(user.getId());
-            return profile != null && profile.getDepartment() != null
-                    && topic.getDepartment() != null && profile.getDepartment().getId().equals(topic.getDepartment().getId());
-        }
+        // Nhóm vai trò quản trị (Quản trị viên, Trưởng khoa, Phụ trách khoa) được xem mọi báo cáo
+        // đang liệt kê ở trang /admin/reports, khớp với phạm vi phân quyền của khu vực quản trị.
+        if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.DEAN
+                || user.getRole() == UserRole.DEPARTMENT_HEAD) return true;
         if (user.getRole() == UserRole.STUDENT) {
             Student student = students.findByUserId(user.getId());
             return student != null && members.existsByGroupIdAndStudentId(registration.getGroup().getId(), student.getId());
