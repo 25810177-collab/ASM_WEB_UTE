@@ -31,7 +31,7 @@
                     <!-- Council Header -->
                     <div class="bg-white px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex items-center gap-3 flex-wrap">
-                            <span class="code-tag font-bold text-xs bg-slate-900 text-white border-slate-900">${c.code}</span>
+                            <span class="code-tag font-bold text-xs bg-slate-900 border-slate-900">${c.code}</span>
                             <h3 class="text-sm font-extrabold text-slate-900"><c:out value="${c.name}" /></h3>
                             <span class="status-badge ${c.status == 'COMPLETED' ? 'status-approved' : 'status-pending'}">
                                 ${enumLabel.label(c.status)}
@@ -89,7 +89,7 @@
                                                                         <span class="font-bold text-slate-800">${sc.councilMember.lecturer.user.fullName}:</span>
                                                                         <span class="font-black text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">${sc.score} / 10</span>
                                                                     </div>
-                                                                    <p class="text-slate-500 italic mt-0.5 line-clamp-1">"${sc.comment}"</p>
+                                                                    <p class="text-slate-500 italic mt-0.5 line-clamp-1">"<c:out value="${sc.comment}" />"</p>
                                                                 </div>
                                                             </c:forEach>
                                                         </div>

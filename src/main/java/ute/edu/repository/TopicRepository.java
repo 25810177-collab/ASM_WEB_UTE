@@ -2,8 +2,6 @@ package ute.edu.repository;
 
 import java.util.List;
 import java.util.Optional;
-import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,8 +10,8 @@ import ute.edu.entity.Topic;
 
 /** Truy vấn dữ liệu bảng topics (đề tài). */
 public interface TopicRepository extends JpaRepository<Topic, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select t from Topic t where t.id = :id")
+    /** Khóa dòng đến hết giao dịch (SELECT ... FOR UPDATE chạy được trên cả MySQL và MariaDB). */
+    @Query(value = "SELECT * FROM topics WHERE id = :id FOR UPDATE", nativeQuery = true)
     Optional<Topic> findForUpdate(@Param("id") Long id);
 
     @Query("select t from Topic t where t.status in (ute.edu.enums.TopicStatus.PUBLISHED, ute.edu.enums.TopicStatus.APPROVED) and t.registrationPeriod.status = ute.edu.enums.PeriodStatus.OPEN and t.registrationPeriod.active = true order by t.createdAt desc, t.id desc")

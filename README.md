@@ -19,6 +19,7 @@ Tài liệu hướng dẫn cài đặt trên Windows bằng PowerShell. Các l�
 11. [Đóng gói và chạy WAR](#11-đóng-gói-và-chạy-war)
 12. [Lỗi thường gặp](#12-lỗi-thường-gặp)
 13. [Lưu trữ và vận hành](#13-lưu-trữ-và-vận-hành)
+14. [Triển khai Docker / Railway](#14-triển-khai-docker--railway)
 
 ## 1. Chức năng và vai trò
 
@@ -151,9 +152,13 @@ Cấu hình gốc nằm trong [application.properties](src/main/resources/applic
 | Biến | Ý nghĩa |
 | --- | --- |
 | `PORT` | Cổng HTTP; mặc định `14090` |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | Máy chủ, cổng, tên database; mặc định `localhost`, `3306`, `asm_web_ute` |
 | `DB_USERNAME` | Tên người dùng MySQL; mặc định `root` |
 | `DB_PASSWORD` | Mật khẩu MySQL của bạn |
 | `SPRING_DATASOURCE_URL` | Ghi đè toàn bộ URL kết nối khi đổi máy chủ, cổng hoặc tên database |
+| `DDL_AUTO` | Chế độ cập nhật schema của Hibernate; mặc định `update`, hosting đã import SQL nên đặt `none` |
+| `LAZY_INIT` | `true` để khởi tạo bean khi cần, giúp khởi động nhanh trên cloud; mặc định `false` |
+| `SHOW_SQL` | `true` để in câu SQL ra console khi gỡ lỗi; mặc định `false` |
 | `MAIL_USERNAME` | Tài khoản gửi email |
 | `MAIL_PASSWORD` | Thông tin xác thực SMTP phù hợp với tài khoản gửi |
 | `GOOGLE_CLIENT_ID` | Client ID của ứng dụng Google OAuth |
@@ -455,3 +460,14 @@ Có thể triển khai WAR vào servlet container Jakarta tương thích. Bản 
 - Token đăng nhập lưu trong bộ nhớ ứng dụng, mặc định có thời hạn 8 giờ. Khởi động lại ứng dụng sẽ cần đăng nhập lại; đây chưa phải cơ chế chia sẻ phiên giữa nhiều máy chủ.
 - Trước khi sử dụng thật, tắt đăng nhập nhanh, cấu hình thông tin dịch vụ thật, sao lưu dữ liệu và xem lại chế độ cập nhật schema của Hibernate.
 - Kiểm thử HTTP/JSP không thay thế kiểm tra bố cục trên trình duyệt, màn hình điện thoại, Google OAuth thật hoặc nhận email thật. Cần kiểm tra riêng các phần này trên môi trường sử dụng thực tế.
+
+## 14. Triển khai Docker / Railway
+
+`Dockerfile` ở thư mục gốc build WAR bằng Maven (JDK 25) rồi chạy `java -jar app.war` trên cổng `$PORT`.
+
+1. Import `database/asm_web_ute_data.sql` vào database trên hosting (phpMyAdmin → Import). Nếu hosting không cho tạo database, bỏ hai dòng `CREATE DATABASE` và `USE` ở đầu tệp trước khi import.
+2. Tạo dịch vụ Railway từ kho GitHub; Railway tự nhận `Dockerfile`.
+3. Khai báo biến môi trường: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MAIL_USERNAME`, `MAIL_PASSWORD`. Ảnh Docker đã đặt sẵn `DDL_AUTO=none` và `LAZY_INIT=true`.
+4. Thêm tên miền riêng (CNAME về địa chỉ Railway cấp) và khai báo `https://<tên-miền>/login/oauth2/code/google` trong Authorized redirect URIs của Google OAuth.
+
+Truy vấn khóa dòng dùng `SELECT ... FOR UPDATE` thuần nên chạy được trên cả MySQL 8 và MariaDB 10.x. Railway chỉ mở SMTP từ gói Pro trở lên (gói Free/Trial/Hobby bị chặn), nên email chỉ gửi được khi chạy ở máy cá nhân hoặc máy chủ cho phép SMTP.
