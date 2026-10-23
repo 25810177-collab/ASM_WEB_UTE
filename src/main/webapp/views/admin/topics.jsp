@@ -88,7 +88,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 text-xs">
                                     <c:forEach var="t" items="${topics}">
-                                        <tr class="hover:bg-slate-50/80 transition-colors topic-row">
+                                        <tr class="hover:bg-slate-50/80 transition-colors topic-row" data-topic-id="${t.id}">
                                             <td class="align-middle whitespace-nowrap">
                                                 <span class="code-tag">${t.code}</span>
                                             </td>
@@ -133,16 +133,20 @@
                                             </td>
                                             <td class="align-middle text-right whitespace-nowrap">
                                                 <div class="inline-flex items-center justify-end gap-1">
+                                                    <button type="button" class="btn-ui btn-ui-outline"
+                                                        data-topic-view="${t.id}" data-bs-toggle="modal" data-bs-target="#topicDetailModal">
+                                                        <i data-lucide="eye"></i> Xem
+                                                    </button>
                                                     <c:if test="${t.status == 'PENDING' || t.status == 'DRAFT'}">
                                                         <button type="button"
                                                             onclick="approveTopicAjax('${t.id}', this)"
-                                                            class="inline-flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-extrabold leading-none py-1 px-2.5 rounded-full border border-emerald-600 shadow-xs transition-colors"
+                                                            class="btn-ui btn-ui-success"
                                                             title="Chấp nhận và công bố">
                                                             <i data-lucide="check" class="w-3 h-3"></i> Duyệt
                                                         </button>
                                                         <button type="button"
                                                             onclick="rejectTopicSweetAlert('${t.id}', '${fn:escapeXml(t.title)}')"
-                                                            class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white text-[12px] font-extrabold leading-none py-1 px-2.5 rounded-full border border-rose-200 transition-colors"
+                                                            class="btn-ui btn-ui-danger"
                                                             title="Từ chối đề xuất">
                                                             <i data-lucide="x" class="w-3 h-3"></i> Từ chối
                                                         </button>
@@ -153,7 +157,7 @@
                                                         onsubmit="return confirmDeleteTopic(event, '${fn:escapeXml(t.title)}');">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                                                         <button type="submit"
-                                                            class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                            class="btn-icon p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                                                             title="Xóa">
                                                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                                                         </button>
@@ -181,24 +185,58 @@
                     </div>
                 </main>
 
+                <c:forEach var="t" items="${topics}">
+                    <template id="adminTopicDetail-${t.id}">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <div><dt class="font-bold text-slate-500">Mã đề tài</dt><dd class="mt-1 font-mono text-sky-700"><c:out value="${t.code}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">Trạng thái</dt><dd data-topic-detail-status class="mt-1 font-semibold"><c:out value="${enumLabel.label(t.status)}" /></dd></div>
+                            <div class="sm:col-span-2"><dt class="font-bold text-slate-500">Tên đề tài</dt><dd class="mt-1 font-semibold break-words"><c:out value="${t.title}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">Khoa quản lý</dt><dd class="mt-1 break-words"><c:out value="${t.department.name}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">Đợt đăng ký</dt><dd class="mt-1 break-words"><c:out value="${t.registrationPeriod != null ? t.registrationPeriod.name : 'Chung'}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">GVHD chính</dt><dd class="mt-1 break-words"><c:out value="${t.lecturer != null ? t.lecturer.user.fullName : 'Chưa phân công'}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">Đồng hướng dẫn</dt><dd class="mt-1 break-words"><c:out value="${t.coLecturer != null ? t.coLecturer.user.fullName : 'Không có'}" /></dd></div>
+                            <div><dt class="font-bold text-slate-500">Số sinh viên tối đa</dt><dd class="mt-1">${t.maxStudents}</dd></div>
+                            <div class="sm:col-span-2"><dt class="font-bold text-slate-500">Mô tả chi tiết</dt><dd class="mt-1 whitespace-pre-wrap break-words"><c:out value="${not empty t.description ? t.description : 'Chưa có mô tả.'}" /></dd></div>
+                            <div class="sm:col-span-2"><dt class="font-bold text-slate-500">Yêu cầu đối với sinh viên</dt><dd class="mt-1 whitespace-pre-wrap break-words"><c:out value="${not empty t.requirements ? t.requirements : 'Không có yêu cầu bổ sung.'}" /></dd></div>
+                        </dl>
+                    </template>
+                </c:forEach>
+
+                <div class="modal fade" id="topicDetailModal" tabindex="-1" aria-labelledby="topicDetailTitle" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content border-0 shadow-2xl">
+                            <div class="topic-modal-header modal-header-hero flex justify-between items-center">
+                                <h5 id="topicDetailTitle" class="font-bold">Chi tiết đề tài</h5>
+                                <button type="button" class="btn-icon text-white" data-bs-dismiss="modal" aria-label="Đóng">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                            <div id="topicDetailContent" class="modal-body topic-modal-body"></div>
+                            <div class="topic-modal-footer bg-slate-50 border-t border-slate-100 flex justify-end">
+                                <button type="button" class="btn-ui btn-ui-outline" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Modal Create Topic -->
-                <div class="modal fade" id="createTopicModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal fade" id="createTopicModal" tabindex="-1" aria-labelledby="createTopicTitle" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                         <div class="modal-content rounded-3xl border-0 shadow-2xl overflow-hidden">
-                            <form method="post" action="${pageContext.request.contextPath}/admin/topics/save">
+                            <form id="createTopicForm" class="managed-modal-form" method="post" action="${pageContext.request.contextPath}/admin/topics/save">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                                 <div
-                                    class="bg-gradient-to-r from-sky-700 to-blue-900 px-6 py-4 text-white flex justify-between items-center">
-                                    <h5 class="text-base font-bold flex items-center gap-2">
+                                    class="topic-modal-header modal-header-hero text-white flex justify-between items-center">
+                                    <h5 id="createTopicTitle" class="text-base font-bold flex items-center gap-2">
                                         <i data-lucide="book-plus" class="w-5 h-5 text-sky-300"></i> Thêm đề tài mới
                                     </h5>
-                                    <button type="button" class="text-white/80 hover:text-white p-1"
-                                        data-bs-dismiss="modal">
+                                    <button type="button" class="btn-icon text-white/80 hover:text-white p-1"
+                                        data-bs-dismiss="modal" aria-label="Đóng">
                                         <i data-lucide="x" class="w-5 h-5"></i>
                                     </button>
                                 </div>
-                                <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="modal-body topic-modal-body space-y-4">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mã đề tài <span
                                                     class="text-rose-500">*</span></label>
@@ -206,7 +244,7 @@
                                                 class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-sky-700 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
                                                 placeholder="VD: CNTT-010" required>
                                         </div>
-                                        <div class="sm:col-span-2">
+                                        <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên đề tài
                                                 <span class="text-rose-500">*</span></label>
                                             <input type="text" name="title"
@@ -296,7 +334,7 @@
                                             placeholder="Kỹ năng, kiến thức chuyên ngành cần thiết..."></textarea>
                                     </div>
                                 </div>
-                                <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                                <div class="topic-modal-footer bg-slate-50 border-t border-slate-100 flex justify-end">
                                     <button type="button" class="btn-ui btn-ui-outline text-xs"
                                         data-bs-dismiss="modal">Hủy</button>
                                     <button type="submit" class="btn-ui btn-ui-primary text-xs">Lưu đề tài</button>
@@ -309,6 +347,13 @@
                 <jsp:include page="../common/footer.jsp" />
 
                 <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        document.getElementById('topicDetailModal').addEventListener('show.bs.modal', function (event) {
+                            const template = document.getElementById('adminTopicDetail-' + event.relatedTarget?.dataset.topicView);
+                            if (template) document.getElementById('topicDetailContent').replaceChildren(template.content.cloneNode(true));
+                        });
+                    });
+
                     function filterTopicsTable() {
                         const q = document.getElementById('topicSearchInput').value.toLowerCase();
                         document.querySelectorAll('.topic-row').forEach(row => {
@@ -327,6 +372,13 @@
                         } else {
                             cell.innerHTML = '<span class="status-badge status-pending">CHỜ DUYỆT</span>';
                         }
+                        const detailStatus = document.getElementById('adminTopicDetail-' + row.dataset.topicId)
+                            ?.content.querySelector('[data-topic-detail-status]');
+                        if (detailStatus) {
+                            detailStatus.textContent = status === 'PUBLISHED' ? 'Đã công bố'
+                                : status === 'APPROVED' ? 'Đã duyệt'
+                                : status === 'REJECTED' ? 'Từ chối' : 'Chờ duyệt';
+                        }
                         const actions = row.children[6];
                         if (actions) {
                             actions.querySelectorAll('button[onclick*="approveTopicAjax"], button[onclick*="rejectTopicSweetAlert"]').forEach(b => b.remove());
@@ -341,7 +393,13 @@
                                 { status: 'PUBLISHED' }
                             );
                             if (data.success) {
-                                EnterpriseUI.toast('success', 'Đã duyệt', 'Đề tài đã được chấp nhận và công bố cho sinh viên đăng ký.');
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đã duyệt',
+                                    text: 'Đề tài đã được chấp nhận và công bố cho sinh viên đăng ký.',
+                                    position: 'center',
+                                    confirmButtonText: 'Đóng'
+                                });
                                 setTopicStatusBadge(btn.closest('tr'), 'PUBLISHED');
                             } else {
                                 Swal.fire({ icon: 'error', title: 'Lỗi', text: data.message || 'Không thể duyệt', confirmButtonColor: '#006da8' });
@@ -377,7 +435,13 @@
                                 { status: 'REJECTED', rejectionReason: result.value.trim() }
                             );
                             if (data.success) {
-                                await EnterpriseUI.toast('success', 'Đã từ chối', data.message);
+                                await Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đã từ chối',
+                                    text: data.message,
+                                    position: 'center',
+                                    confirmButtonText: 'Đóng'
+                                });
                                 const row = document.querySelector('button[onclick*="approveTopicAjax(\'' + topicId + '\'"]')?.closest('tr');
                                 setTopicStatusBadge(row, 'REJECTED');
                             } else {

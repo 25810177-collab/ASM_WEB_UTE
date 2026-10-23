@@ -1,0 +1,106 @@
+:root {
+    --action-height: 36px;
+    --action-radius: 6px;
+    --action-font-size: 0.8125rem;
+    --action-padding: 8px 12px;
+    --action-icon-size: 16px;
+}
+
+/* Geometry is shared; variants and page utilities retain their colors and widths.
+   Important declarations override Bootstrap spacing and Tailwind size utilities. */
+:root :is(.btn-ui, .btn-page, .btn-icon, .tab-btn, .propose-step-btn,
+    .demo-pill, .demo-chip, .swal2-styled) {
+    box-sizing: border-box;
+    min-height: var(--action-height) !important;
+    padding: var(--action-padding) !important;
+    border-radius: var(--action-radius) !important;
+    font-family: inherit !important;
+    font-size: var(--action-font-size) !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    letter-spacing: normal !important;
+    gap: 6px;
+    box-shadow: none !important;
+    vertical-align: middle;
+}
+
+.btn-ui,
+.btn.btn-ui,
+.btn-page,
+:root .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-style: solid;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-page {
+    min-width: var(--action-height);
+}
+
+:root .btn-icon {
+    flex: 0 0 auto;
+    width: var(--action-height);
+    height: var(--action-height);
+    min-width: var(--action-height);
+    padding: 8px !important;
+}
+
+.btn-icon:not(.btn-ui) {
+    border-color: transparent;
+}
+
+.btn.btn-ui {
+    border-color: transparent;
+}
+
+:is(.btn-ui, .btn-icon, .btn-page).hidden,
+:is(.btn-ui, .btn-icon, .btn-page)[hidden] {
+    display: none;
+}
+
+:is(.btn-ui, .btn-page, .btn-icon, .swal2-styled):focus-visible {
+    outline: 2px solid #006da8;
+    outline-offset: 2px;
+}
+
+:root :is(.btn-ui, .btn-page, .btn-icon):disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+:is(.btn-ui, .btn-icon) :is(svg, i[data-lucide]) {
+    flex-shrink: 0;
+    width: var(--action-icon-size);
+    height: var(--action-icon-size);
+}
+
+.btn-ui-success {
+    background: #059669;
+    color: #fff;
+    border-color: #059669;
+}
+
+.btn-ui-success:hover {
+    background: #047857;
+    color: #fff;
+    border-color: #047857;
+}
+
+/* Navigation icon controls use the same shape without resizing user avatars. */
+:is(.sidebar-toggle-btn, .topbar-icon-btn, .sidebar-logout-btn, #togglePassword) {
+    align-items: center;
+    justify-content: center;
+    width: var(--action-height);
+    height: var(--action-height);
+    min-width: var(--action-height);
+    padding: 8px !important;
+    border-radius: var(--action-radius) !important;
+}
+
+#togglePassword {
+    display: inline-flex;
+}

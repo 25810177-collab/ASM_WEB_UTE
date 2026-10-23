@@ -35,6 +35,7 @@
                 </script>
                 <script src="https://unpkg.com/lucide@latest"></script>
                 <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/custom-theme.css?v=5.2.0">
+                <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/buttons.css?v=1.0.1">
 
                 <style>
                     .landing-hero {
@@ -216,11 +217,11 @@
 
                                 <div class="flex flex-wrap gap-4 pt-2">
                                     <a href="#topicsSection"
-                                        class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-blue-900 font-extrabold text-sm shadow-xl hover:bg-sky-50 hover:shadow-2xl transition-all hover:-translate-y-0.5">
+                                        class="btn-ui inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white text-blue-900 font-extrabold text-sm shadow-xl hover:bg-sky-50 hover:shadow-2xl transition-all hover:-translate-y-0.5">
                                         <i data-lucide="compass" class="w-4 h-4 text-sky-600"></i> Khám phá đề tài
                                     </a>
                                     <a href="${pageContext.request.contextPath}/login"
-                                        class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl glass-dark-card text-white font-bold text-sm hover:bg-white/15 transition-all hover:-translate-y-0.5">
+                                        class="btn-ui inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl glass-dark-card text-white font-bold text-sm hover:bg-white/15 transition-all hover:-translate-y-0.5">
                                         <i data-lucide="arrow-right-circle" class="w-4 h-4 text-sky-300"></i> Tham gia
                                         đợt ngay
                                     </a>

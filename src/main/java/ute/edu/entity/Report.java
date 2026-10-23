@@ -48,6 +48,9 @@ public class Report {
     // Trạng thái xét duyệt báo cáo.
     private ReportReviewStatus reviewStatus = ReportReviewStatus.PENDING;
 
+    @Column(length = 1000)
+    private String rejectionReason;
+
     public Long getId() { return id; }
     public TopicRegistration getTopicRegistration() { return topicRegistration; }
     public void setTopicRegistration(TopicRegistration value) { topicRegistration = value; }
@@ -70,4 +73,6 @@ public class Report {
                 : reviewStatus;
     }
     public void setReviewStatus(ReportReviewStatus value) { reviewStatus = value; }
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String value) { rejectionReason = value; }
 }

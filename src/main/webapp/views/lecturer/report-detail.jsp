@@ -75,6 +75,9 @@
                                         <c:when test="${report.approved}">
                                             <div class="font-bold text-emerald-700 mt-0.5">${dateDisplay.format(report.approvedAt)}</div>
                                         </c:when>
+                                        <c:when test="${report.reviewStatus == 'REJECTED'}">
+                                            <div class="font-bold text-rose-700 mt-0.5">Đã từ chối, yêu cầu nộp lại</div>
+                                        </c:when>
                                         <c:otherwise>
                                             <div class="font-bold text-amber-700 mt-0.5">Đang chờ xử lý</div>
                                         </c:otherwise>
@@ -90,6 +93,12 @@
                         </div>
                         <p class="text-xs text-slate-600 leading-relaxed"><c:out value="${not empty report.note ? report.note : 'Nhóm không có ghi chú.'}" /></p>
                     </div>
+                    <c:if test="${report.reviewStatus == 'REJECTED'}">
+                        <div class="mt-3 rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800">
+                            <div class="font-bold mb-1.5">Lý do từ chối</div>
+                            <p class="whitespace-pre-wrap break-words"><c:out value="${not empty report.rejectionReason ? report.rejectionReason : 'Chưa có lý do được ghi lại cho bản báo cáo này.'}" /></p>
+                        </div>
+                    </c:if>
                 </div>
 
                 <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
@@ -187,6 +196,7 @@
                                 </c:choose>
                                 <form method="post" action="${pageContext.request.contextPath}/lecturer/reports/${report.id}/reject" onsubmit="return confirmRejectReport(event);">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                                    <input type="hidden" name="rejectionReason" value="">
                                     <button type="submit" class="btn-ui bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 w-full py-3 text-xs font-bold rounded-xl transition-colors">
                                         <i data-lucide="x" class="w-4 h-4"></i> Từ chối báo cáo
                                     </button>
@@ -209,6 +219,14 @@
             icon: 'warning',
             title: 'Từ chối báo cáo?',
             text: 'Nhóm sẽ cần nộp lại báo cáo phù hợp.',
+            input: 'textarea',
+            inputLabel: 'Lý do từ chối / nội dung cần chỉnh sửa',
+            inputPlaceholder: 'Nhập yêu cầu để nhóm chỉnh sửa và nộp lại...',
+            inputAttributes: { maxlength: '1000' },
+            inputValidator: function (value) {
+                if (!value || !value.trim()) return 'Vui lòng nhập lý do từ chối báo cáo.';
+                if (value.trim().length > 1000) return 'Lý do tối đa 1000 ký tự.';
+            },
             showCancelButton: true,
             confirmButtonText: 'Từ chối báo cáo',
             cancelButtonText: 'Hủy',
@@ -216,7 +234,10 @@
             cancelButtonColor: '#64748b',
             customClass: { popup: 'rounded-3xl shadow-2xl' }
         }).then(function (result) {
-            if (result.isConfirmed) form.submit();
+            if (result.isConfirmed) {
+                form.elements.rejectionReason.value = result.value.trim();
+                form.submit();
+            }
         });
         return false;
     }

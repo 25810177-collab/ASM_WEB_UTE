@@ -19,7 +19,7 @@ Tài liệu hướng dẫn cài đặt trên Windows bằng PowerShell. Các l�
 11. [Đóng gói và chạy WAR](#11-đóng-gói-và-chạy-war)
 12. [Lỗi thường gặp](#12-lỗi-thường-gặp)
 13. [Lưu trữ và vận hành](#13-lưu-trữ-và-vận-hành)
-14. [Triển khai Docker / Railway](#14-triển-khai-docker--railway)
+14. [Triển khai Docker / Render](#14-triển-khai-docker--Render)
 
 ## 1. Chức năng và vai trò
 
@@ -472,13 +472,13 @@ Có thể triển khai WAR vào servlet container Jakarta tương thích. Bản 
 - Trước khi sử dụng thật, tắt đăng nhập nhanh, cấu hình thông tin dịch vụ thật, sao lưu dữ liệu và xem lại chế độ cập nhật schema của Hibernate.
 - Kiểm thử HTTP/JSP không thay thế kiểm tra bố cục trên trình duyệt, màn hình điện thoại, Google OAuth thật hoặc nhận email thật. Cần kiểm tra riêng các phần này trên môi trường sử dụng thực tế.
 
-## 14. Triển khai Docker / Railway
+## 14. Triển khai Docker / Render
 
 `Dockerfile` ở thư mục gốc build WAR bằng Maven (JDK 25) rồi chạy `java -jar app.war` trên cổng `$PORT`.
 
 1. Import `database/asm_web_ute_data.sql` vào database trên hosting (phpMyAdmin → Import). Nếu hosting không cho tạo database, bỏ hai dòng `CREATE DATABASE` và `USE` ở đầu tệp trước khi import.
-2. Tạo dịch vụ Railway từ kho GitHub; Railway tự nhận `Dockerfile`.
+2. Tạo dịch vụ Render từ kho GitHub; Render tự nhận `Dockerfile`.
 3. Khai báo biến môi trường: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MAIL_USERNAME`, `MAIL_PASSWORD`. Ảnh Docker đã đặt sẵn `DDL_AUTO=none` và `LAZY_INIT=true`.
-4. Thêm tên miền riêng (CNAME về địa chỉ Railway cấp) và khai báo `https://<tên-miền>/login/oauth2/code/google` trong Authorized redirect URIs của Google OAuth.
+4. Thêm tên miền riêng (CNAME về địa chỉ Render cấp) và khai báo `https://<tên-miền>/login/oauth2/code/google` trong Authorized redirect URIs của Google OAuth.
 
-Truy vấn khóa dòng dùng `SELECT ... FOR UPDATE` thuần nên chạy được trên cả MySQL 8 và MariaDB 10.x. Railway chỉ mở SMTP từ gói Pro trở lên (gói Free/Trial/Hobby bị chặn), nên email chỉ gửi được khi chạy ở máy cá nhân hoặc máy chủ cho phép SMTP.
+Truy vấn khóa dòng dùng `SELECT ... FOR UPDATE` thuần nên chạy được trên cả MySQL 8 và MariaDB 10.x. Render chỉ mở SMTP từ gói Pro trở lên (gói Free/Trial/Hobby bị chặn), nên email chỉ gửi được khi chạy ở máy cá nhân hoặc máy chủ cho phép SMTP.

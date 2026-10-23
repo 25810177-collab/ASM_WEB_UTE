@@ -62,6 +62,7 @@
         .ghost:hover { background: #e2e8f0; }
         .path { margin-top: 24px; font-size: 12px; color: #94a3b8; word-break: break-all; }
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/buttons.css?v=1.0.1">
 </head>
 <body>
 <main class="card">
@@ -70,13 +71,13 @@
     <h1><c:out value="${title}" /></h1>
     <p><c:out value="${detail}" /></p>
     <div class="actions">
-        <a class="btn primary" href="${pageContext.request.contextPath}${homeUrl}">Về trang chủ của tôi</a>
+        <a class="btn btn-ui primary" href="${pageContext.request.contextPath}${homeUrl}">Về trang chủ của tôi</a>
         <c:choose>
             <c:when test="${empty sessionScope.user}">
-                <a class="btn ghost" href="${pageContext.request.contextPath}/login">Đăng nhập</a>
+                <a class="btn btn-ui ghost" href="${pageContext.request.contextPath}/login">Đăng nhập</a>
             </c:when>
             <c:otherwise>
-                <a class="btn ghost" href="javascript:history.back()">Quay lại</a>
+                <a class="btn btn-ui ghost" href="javascript:history.back()">Quay lại</a>
             </c:otherwise>
         </c:choose>
     </div>

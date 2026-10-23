@@ -203,7 +203,7 @@
                                                             </c:when>
                                                             <c:otherwise>
                                                                 <button type="button" disabled
-                                                                    class="px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-xl cursor-not-allowed border border-slate-200">
+                                                class="btn-ui px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-xl cursor-not-allowed border border-slate-200">
                                                                     Cần lập nhóm trước
                                                                 </button>
                                                             </c:otherwise>
@@ -213,7 +213,7 @@
                             </div>
 
                             <!-- Registration Modal for Leader -->
-                            <c:if test="${not workflowCompleted && not empty myGroup && myGroup.leader.id == student.id && empty myRegistration}">
+                            <c:if test="${not workflowCompleted && not empty myGroup && myGroup.leader.id == student.id && (empty myRegistration || myRegistration.status == 'REJECTED')}">
                                 <div class="modal fade" id="registerTopicModal_${t.id}" tabindex="-1"
                                     aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
@@ -232,7 +232,7 @@
                                                         Đăng Ký Đề Tài
                                                     </h5>
                                                     <button type="button"
-                                                        class="text-white/80 hover:text-white p-1 rounded-lg transition-colors"
+                                                        class="btn-icon text-white/80 hover:text-white p-1 rounded-lg transition-colors"
                                                         data-bs-dismiss="modal">
                                                         <i data-lucide="x" class="w-5 h-5"></i>
                                                     </button>

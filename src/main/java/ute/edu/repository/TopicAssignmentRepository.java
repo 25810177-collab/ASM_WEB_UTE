@@ -7,6 +7,7 @@ import ute.edu.entity.TopicAssignment;
 
 /** Truy vấn bảng topic_assignments (phân công đề tài vào hội đồng). */
 public interface TopicAssignmentRepository extends JpaRepository<TopicAssignment, Long> {
+    boolean existsByCouncilId(Long councilId);
     /** Hai khoảng giao nhau khi bắt đầu trước giờ kết thúc của nhau; cho phép nối tiếp. */
     boolean existsByCouncilIdAndStartTimeLessThanAndEndTimeGreaterThan(
             Long councilId, java.time.LocalTime endTime, java.time.LocalTime startTime);

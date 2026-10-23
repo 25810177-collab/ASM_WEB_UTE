@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import ute.edu.enums.RegistrationType;
 import ute.edu.enums.PeriodStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Entity
 @Table(name = "registration_periods")
@@ -31,26 +32,32 @@ public class RegistrationPeriod {
 
     @Column(nullable = false)
     // Ngày bắt đầu giảng viên đề xuất đề tài.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate lecturerStartDate;
 
     @Column(nullable = false)
     // Hạn cuối giảng viên đề xuất đề tài.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate lecturerEndDate;
 
     @Column(nullable = false)
     // Ngày bắt đầu sinh viên đăng ký đề tài.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate studentStartDate;
 
     @Column(nullable = false)
     // Hạn cuối sinh viên đăng ký đề tài.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate studentEndDate;
 
     @Column
     // Hạn giảng viên phản biện hoàn tất chấm điểm.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate reviewerDeadline;
 
     @Column
     // Ngày dự kiến báo cáo trước hội đồng.
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate councilReportDate;
 
     @Column(nullable = false)

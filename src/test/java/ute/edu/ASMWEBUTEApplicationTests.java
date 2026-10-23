@@ -189,7 +189,7 @@ class ASMWEBUTEApplicationTests {
                 try {
                     councilService.createCouncil(council, 2L, 5L, java.util.List.of(6L));
                     return true;
-                } catch (IllegalStateException occupied) {
+                } catch (IllegalStateException | ute.edu.validation.FormValidationException occupied) {
                     assertTrue(occupied.getMessage().contains("đã tham gia một hội đồng"), occupied.getMessage());
                     return false;
                 }

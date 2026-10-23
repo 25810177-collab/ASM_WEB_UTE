@@ -146,7 +146,10 @@ public class LecturerController {
         model.addAttribute("topic", new Topic());
         model.addAttribute("departments", departmentRepository.findAll());
         model.addAttribute("periods", periodService.getOpenLecturerPeriods());
-        model.addAttribute("lecturers", lectureRepository.findAll());
+        model.addAttribute("filterPeriods", periodService.getAll());
+        model.addAttribute("lecturers", lecturer.getDepartment() == null
+                ? List.of()
+                : lectureRepository.findByDepartmentId(lecturer.getDepartment().getId()));
         model.addAttribute("activePeriod", periodService.getActivePeriod());
         return "lecturer/topics";
     }
@@ -187,6 +190,7 @@ public class LecturerController {
                         && existing.getStatus() != TopicStatus.REJECTED) {
                     throw new IllegalStateException("Đề tài đã được duyệt hoặc đang thực hiện, không thể sửa đề xuất!");
                 }
+                topic.setCode(existing.getCode());
                 topic.setCreatedAt(existing.getCreatedAt());
             }
             topic.setLecturer(lecturer);
@@ -204,8 +208,11 @@ public class LecturerController {
             }
 
             topic.setStatus(TopicStatus.PENDING);
+            boolean resubmitting = topic.getId() != null;
             topicService.save(topic);
-            redirectAttributes.addFlashAttribute("successMessage", "Đề xuất đề tài thành công! Chờ Trưởng khoa duyệt.");
+            redirectAttributes.addFlashAttribute("successMessage", !resubmitting
+                    ? "Đề xuất đề tài thành công! Chờ Trưởng khoa duyệt."
+                    : "Đã gửi lại đề xuất đề tài! Chờ Trưởng khoa duyệt.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Lỗi: " + ute.edu.helper.UserMessages.forException(e));
         }
@@ -259,6 +266,7 @@ public class LecturerController {
                 .toList();
 
         model.addAttribute("registrations", myGroupRegs);
+        model.addAttribute("filterPeriods", periodService.getAll());
         return "lecturer/groups";
     }
 
@@ -320,6 +328,7 @@ public class LecturerController {
                 })
                 .toList();
         model.addAttribute("myCouncilMembers", myCouncilMembers);
+        model.addAttribute("filterPeriods", periodService.getAll());
         model.addAttribute("assignmentsByCouncil", assignmentsByCouncil);
         model.addAttribute("lecturer", lecturer);
         model.addAttribute("councilService", councilService);
@@ -362,7 +371,9 @@ public class LecturerController {
                         .orElse(null)
                 : null;
 
-        List<Report> reports = reportService.getReportsForRegistration(assignment.getTopicRegistration().getId());
+        List<Report> reports = reportService.getReportsForRegistration(assignment.getTopicRegistration().getId()).stream()
+                .filter(report -> report.getReviewStatus() == ReportReviewStatus.APPROVED)
+                .toList();
 
         model.addAttribute("assignment", assignment);
         model.addAttribute("lecturer", lecturer);
@@ -494,6 +505,7 @@ public class LecturerController {
                 .toList();
 
         model.addAttribute("reports", myReports);
+        model.addAttribute("filterPeriods", periodService.getAll());
         model.addAttribute("lecturer", lecturer);
         return "lecturer/reports";
     }
@@ -544,6 +556,7 @@ public class LecturerController {
      */
     @PostMapping("/reports/{id}/reject")
     public String rejectReport(@PathVariable Long id,
+            @RequestParam(required = false) String rejectionReason,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
         Lecture lecturer = getCurrentLecturer(session);
@@ -557,7 +570,7 @@ public class LecturerController {
             if (report.isApproved()) {
                 throw new IllegalStateException("Báo cáo đã được duyệt và đang bị khóa");
             }
-            reportService.reject(id);
+            reportService.reject(id, rejectionReason);
             redirectAttributes.addFlashAttribute("successMessage",
                     "Đã từ chối báo cáo. Nhóm cần nộp lại báo cáo phù hợp.");
         } catch (Exception e) {

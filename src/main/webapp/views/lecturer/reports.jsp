@@ -5,6 +5,8 @@
 <c:set scope="request" var="pageHeading" value="Xem báo cáo sinh viên hướng dẫn" />
 <c:set scope="request" var="pageSubheading" value="Danh sách các file báo cáo tiến độ và báo cáo hoàn chỉnh do Nhóm trưởng nộp" />
 <c:set scope="request" var="activeMenu" value="reports" />
+<c:set scope="request" var="periodFilterTarget" value="#reportsTable" />
+<c:set scope="request" var="periodSearchPlaceholder" value="Tìm file, đề tài, nhóm, người nộp, MSSV..." />
 
 <jsp:include page="../common/header.jsp" />
 <jsp:include page="../common/sidebar.jsp" />
@@ -12,7 +14,8 @@
 <div class="app-main">
     <jsp:include page="../common/navbar.jsp" />
 
-    <main class="app-content workspace-page space-y-6">
+    <main class="app-content workspace-page lecturer-reports-page space-y-6">
+        <jsp:include page="../common/period-filter.jsp" />
         <div class="table-shell">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
                 <div class="flex items-center gap-2.5">
@@ -23,13 +26,8 @@
                         <h3 class="text-sm font-bold text-slate-900 leading-tight">
                             Báo cáo sinh viên hướng dẫn (${fn:length(reports)})
                         </h3>
-                        <p class="text-[11px] text-slate-500">Xem file, chấm điểm quá trình và phê duyệt báo cáo</p>
+                        <p class="text-[11px] text-slate-500">Xem nội dung và tệp báo cáo của các nhóm sinh viên</p>
                     </div>
-                </div>
-                <div class="relative w-full sm:w-80">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                    <input type="text" id="reportSearchInput" onkeyup="filterReportsTable()" placeholder="Tìm file, đề tài, nhóm, người nộp..."
-                           class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
                 </div>
             </div>
 
@@ -47,11 +45,11 @@
                         <table class="w-full min-w-[1080px] table-fixed text-left border-collapse" id="reportsTable">
                             <colgroup>
                                 <col style="width:20%">
-                                <col style="width:22%">
-                                <col style="width:22%">
+                                <col style="width:20%">
+                                <col style="width:19%">
                                 <col style="width:12%">
-                                <col style="width:12%">
-                                <col style="width:12%">
+                                <col style="width:15%">
+                                <col style="width:14%">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -65,7 +63,8 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 text-xs">
                                 <c:forEach var="r" items="${reports}">
-                                    <tr class="hover:bg-slate-50/80 transition-colors report-row">
+                                    <tr class="hover:bg-slate-50/80 transition-colors report-row" data-period-item
+                                        data-period-id="${r.topicRegistration.topic.registrationPeriod.id}">
                                         <td class="align-top">
                                             <span class="code-tag">${r.topicRegistration.topic.code}</span>
                                             <div class="font-bold text-slate-900 mt-1 leading-snug line-clamp-2" title="${r.topicRegistration.topic.title}">
@@ -111,22 +110,9 @@
                                         </td>
                                         <td class="align-top text-center">
                                             <a href="${pageContext.request.contextPath}/lecturer/reports/${r.id}"
-                                               class="btn-ui btn-ui-primary text-xs py-1.5 px-3 w-full max-w-[140px] mx-auto shadow-xs">
+                                               class="lecturer-report-view btn-ui btn-ui-primary text-xs">
                                                 <i data-lucide="eye" class="w-3.5 h-3.5"></i> Xem báo cáo
                                             </a>
-                                            <div class="mt-2 flex justify-center">
-                                                <c:choose>
-                                                    <c:when test="${r.reviewStatus == 'APPROVED'}">
-                                                        <span class="status-badge status-approved">ĐÃ DUYỆT</span>
-                                                    </c:when>
-                                                    <c:when test="${r.reviewStatus == 'REJECTED'}">
-                                                        <span class="status-badge status-danger">TỪ CHỐI</span>
-                                                    </c:when>
-                                                    <c:otherwise>
-                                                        <span class="status-badge status-pending">CHỜ DUYỆT</span>
-                                                    </c:otherwise>
-                                                </c:choose>
-                                            </div>
                                         </td>
                                     </tr>
                                 </c:forEach>
@@ -139,14 +125,3 @@
     </main>
 
 <jsp:include page="../common/footer.jsp" />
-
-<script>
-    function filterReportsTable() {
-        const input = document.getElementById('reportSearchInput');
-        if (!input) return;
-        const q = input.value.toLowerCase();
-        document.querySelectorAll('.report-row').forEach(row => {
-            row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
-        });
-    }
-</script>

@@ -20,6 +20,7 @@
         <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script src="${pageContext.request.contextPath}/assets/js/enterprise-ui.js?v=5.2.0"></script>
+        <script src="${pageContext.request.contextPath}/assets/js/period-filter.js?v=1.0.1"></script>
         <c:if test="${not empty errorMessage or not empty successMessage}">
             <div id="sharedFlashMessage" hidden data-type="${not empty errorMessage ? 'error' : 'success'}"><c:out value="${not empty errorMessage ? errorMessage : successMessage}" /></div>
         </c:if>

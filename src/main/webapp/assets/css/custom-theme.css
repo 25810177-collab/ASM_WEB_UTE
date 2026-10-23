@@ -2738,3 +2738,346 @@ body {
     font-size: 0.95rem;
     border-radius: .75rem;
 }
+
+/* Keep lecturer topic names, departments and actions within the workspace. */
+#lecturerTopicsTable {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+}
+
+#lecturerTopicsTable :is(th, td) {
+    min-width: 0;
+    padding-inline: clamp(6px, 0.7vw, 12px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+#lecturerTopicsTable :is(.status-badge, .code-tag) {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.4;
+}
+
+#lecturerTopicsTable .lecturer-topic-title {
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+
+#lecturerTopicsTable .lecturer-topic-department {
+    font-size: 0.675rem;
+    line-height: 1.5;
+}
+
+#lecturerTopicsTable td[data-label="Trạng thái"] .status-badge {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    padding-inline: 8px;
+    font-size: clamp(0.5625rem, 0.75vw, 0.6875rem);
+}
+
+#lecturerTopicsTable .lecturer-topic-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+#lecturerTopicsTable .btn-ui {
+    max-width: 100%;
+    min-width: 0;
+    padding: 7px 9px;
+    font-size: 0.72rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+#lecturerTopicsTable .btn-ui svg {
+    flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+    #lecturerTopicsTable :is(colgroup, thead) {
+        display: none;
+    }
+
+    #lecturerTopicsTable tbody {
+        display: block;
+    }
+
+    #lecturerTopicsTable tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        padding: 16px;
+    }
+
+    #lecturerTopicsTable tbody td {
+        display: block;
+        padding: 0;
+        text-align: left;
+    }
+
+    #lecturerTopicsTable tbody td:nth-child(2),
+    #lecturerTopicsTable .table-empty-row td {
+        grid-column: 1 / -1;
+    }
+
+    #lecturerTopicsTable td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    #lecturerTopicsTable .lecturer-topic-actions {
+        align-items: flex-start;
+    }
+}
+
+.lecturer-reports-page #reportsTable td:last-child {
+    padding-inline: 8px;
+    vertical-align: middle;
+}
+
+.lecturer-reports-page .lecturer-report-view {
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.lecturer-reports-page .lecturer-report-view svg {
+    flex-shrink: 0;
+}
+
+#proposeTopicForm input[name="code"][readonly] {
+    background: #eef2f6;
+    color: #64748b;
+    cursor: default;
+}
+
+.workspace-page .period-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #dce8ef;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: var(--sh-xs);
+}
+
+.period-filter-field {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.period-filter-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+#lecturerSearchInput,
+#lecturerPeriodFilter {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 0.8125rem;
+    color: #0f172a;
+}
+
+.period-filter-search {
+    position: relative;
+}
+
+.period-filter-search :is(svg, i) {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+#lecturerSearchInput {
+    padding-left: 36px;
+}
+
+.period-filter-count {
+    flex: 0 0 auto;
+    margin: 0;
+    padding-block: 10px;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+/* Bound the whole dialog to the viewport; only the body scrolls. */
+#createPeriodForm .grid > div { min-width: 0; }
+
+#createPeriodForm .period-field-control {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background-color: #fff;
+    color: #334155;
+    font-size: .8125rem;
+    line-height: 1.5;
+}
+
+#createPeriodForm .period-field-control:focus {
+    outline: 2px solid #0284c7;
+    outline-offset: 2px;
+}
+
+#createPeriodForm .period-field-control.is-invalid { border-color: #e11d48; }
+
+#createCouncilForm .is-invalid {
+    border: 1px solid #e11d48 !important;
+}
+
+:is(#createPeriodForm, #createCouncilForm) .form-field-error {
+    display: block;
+    margin: 6px 0 0;
+    color: #be123c;
+    font-size: .75rem;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) .modal-dialog {
+    --bs-modal-margin: 1rem;
+    width: calc(100% - 2rem);
+    max-width: 960px;
+    height: calc(100dvh - 2rem);
+    min-height: 0;
+    margin: 1rem auto;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) .modal-content {
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 14px !important;
+}
+
+:is(#proposeTopicForm, #createTopicForm) {
+    max-height: calc(100dvh - 2rem);
+    width: 100%;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) :is(.topic-modal-header, .topic-modal-footer) {
+    flex: 0 0 auto;
+    padding: 14px 20px;
+    gap: 12px;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) .topic-modal-header h5 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) .topic-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+#proposeTopicForm .propose-step {
+    padding: 16px;
+    border-radius: 10px;
+}
+
+:is(#proposeTopicForm, #createTopicForm) .grid > div {
+    min-width: 0;
+}
+
+:is(#proposeTopicForm, #createTopicForm) :is(input:not([type="hidden"]), select, textarea) {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+#proposeTopicForm textarea[name="title"] {
+    min-height: 58px;
+    resize: vertical;
+}
+
+#proposeTopicForm textarea[name="description"] {
+    min-height: 96px;
+}
+
+#proposeTopicForm #resubmitTopicNotice:not(.hidden) {
+    padding: 10px 12px;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: #fffbeb;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+#proposeTopicModal .topic-modal-footer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+:is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) .topic-modal-footer .btn-ui {
+    min-width: 76px;
+}
+
+#lecturerTopicsTable .lecturer-topic-actions {
+    align-items: stretch;
+    width: 100%;
+    max-width: 112px;
+    margin-left: auto;
+}
+
+@media (max-width: 767px) {
+    #lecturerTopicsTable .lecturer-topic-actions {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    :is(#proposeTopicModal, #createTopicModal, #topicDetailModal, #registrationDetailModal) :is(.topic-modal-header, .topic-modal-footer, .topic-modal-body) {
+        padding: 12px;
+    }
+
+    #proposeTopicForm .propose-step {
+        padding: 12px;
+    }
+
+    #proposeStepNav {
+        align-items: stretch;
+    }
+
+    #proposeStepNav .propose-step-btn {
+        padding: 6px;
+        font-size: 0.6875rem;
+        white-space: normal;
+    }
+}

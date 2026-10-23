@@ -37,7 +37,7 @@
             <c:otherwise>
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <!-- Left: HTML5 / JS Drag và Drop Upload Zone (5 cols) -->
-                    <div class="lg:col-span-5 space-y-6">
+                    <div class="lg:col-span-5 space-y-6 min-w-0">
                         <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-5">
                             <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
                                 <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
@@ -50,10 +50,15 @@
                             </div>
 
                             <c:choose>
-                                <c:when test="${isLeader}">
+                                <c:when test="${isLeader && registration.topic.status != 'COMPLETED'}">
                                     <form method="post" action="${pageContext.request.contextPath}/student/reports/submit" id="reportUploadForm" class="space-y-4" enctype="multipart/form-data">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                                         <input type="hidden" name="registrationId" value="${registration.id}">
+                                        <div id="reportRetryNotice" hidden class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs space-y-2" role="status">
+                                            <p>Đang nộp lại: <strong id="reportRetryName"></strong></p>
+                                            <p>Chọn tệp đã chỉnh sửa hoặc nhập liên kết mới. Bản bị từ chối vẫn được giữ trong lịch sử.</p>
+                                            <button type="button" id="cancelReportRetry" class="btn-ui btn-ui-outline">Hủy nộp lại</button>
+                                        </div>
                                         
                                         <!-- Drag và Drop Zone -->
                                         <div>
@@ -83,7 +88,7 @@
                                                         <div class="dropzone-file-size text-[11px] text-slate-400">--</div>
                                                     </div>
                                                 </div>
-                                                <button type="button" class="dropzone-file-remove p-1 text-slate-400 hover:text-rose-600 transition-colors" title="Hủy chọn tệp">
+                                                <button type="button" class="btn-icon dropzone-file-remove p-1 text-slate-400 hover:text-rose-600 transition-colors" title="Hủy chọn tệp">
                                                     <i data-lucide="x" class="w-4 h-4"></i>
                                                 </button>
                                             </div>
@@ -108,9 +113,12 @@
                                         </div>
 
                                         <button type="submit" class="btn-ui btn-ui-primary w-full justify-center py-2.5 text-xs shadow-md shadow-sky-500/20">
-                                            <i data-lucide="send" class="w-4 h-4"></i> Xác nhận nộp báo cáo
+                                            <i data-lucide="send" class="w-4 h-4"></i> <span id="reportSubmitLabel">Xác nhận nộp báo cáo</span>
                                         </button>
                                     </form>
+                                </c:when>
+                                <c:when test="${registration.topic.status == 'COMPLETED'}">
+                                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-xs">Đề tài đã hoàn tất. Bạn có thể xem lại lịch sử báo cáo bên cạnh.</div>
                                 </c:when>
                                 <c:otherwise>
                                     <div class="bg-amber-500/10 border border-amber-300/80 text-amber-950 rounded-3xl p-5 text-xs space-y-2">
@@ -128,7 +136,7 @@
                     </div>
 
                     <!-- Right: Submission History (7 cols) -->
-                    <div class="lg:col-span-7 space-y-6">
+                    <div class="lg:col-span-7 space-y-6 min-w-0">
                         <div class="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                                 <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -149,14 +157,14 @@
                                 <c:otherwise>
                                     <div class="space-y-3">
                                         <c:forEach var="r" items="${reports}">
-                                            <div class="p-4 bg-slate-50/70 hover:bg-sky-50/30 rounded-2xl border border-slate-200/80 transition-all space-y-2 text-xs group">
-                                                <div class="flex items-start justify-between gap-3">
-                                                    <div class="flex items-center gap-3">
+                                            <div class="p-4 bg-slate-50/70 hover:bg-sky-50/30 rounded-2xl border border-slate-200/80 transition-all space-y-3 text-xs group">
+                                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                                    <div class="flex items-center gap-3 min-w-0 flex-1">
                                                         <div class="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                                                             <i data-lucide="file-text" class="w-5 h-5"></i>
                                                         </div>
-                                                        <div>
-                                                            <h5 class="font-bold text-slate-900 text-xs group-hover:text-sky-600 transition-colors">${r.fileName}</h5>
+                                                        <div class="min-w-0">
+                                                            <h5 class="font-bold text-slate-900 text-xs group-hover:text-sky-600 transition-colors break-words"><c:out value="${r.fileName}" /></h5>
                                                             <div class="text-[11px] text-slate-500 mt-0.5">
                                                                 Người nộp: <strong><c:out value="${r.submittedBy.user.fullName}" /></strong> (${r.submittedBy.studentCode})
                                                             </div>
@@ -167,20 +175,46 @@
                                                     </span>
                                                 </div>
 
+                                                <c:choose>
+                                                    <c:when test="${r.reviewStatus == 'REJECTED'}">
+                                                        <span class="status-badge status-danger">ĐÃ TỪ CHỐI</span>
+                                                        <div class="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 space-y-1">
+                                                            <div class="font-bold">Lý do từ chối / yêu cầu chỉnh sửa</div>
+                                                            <p class="whitespace-pre-wrap break-words"><c:out value="${not empty r.rejectionReason ? r.rejectionReason : 'Giảng viên chưa ghi lý do từ chối cho bản báo cáo này.'}" /></p>
+                                                            <p>Nhóm cần chỉnh sửa và nộp lại báo cáo để giảng viên xét duyệt.</p>
+                                                        </div>
+                                                    </c:when>
+                                                    <c:when test="${r.reviewStatus == 'APPROVED'}">
+                                                        <span class="status-badge status-approved">ĐÃ DUYỆT</span>
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <span class="status-badge status-pending">CHỜ DUYỆT</span>
+                                                    </c:otherwise>
+                                                </c:choose>
+
                                                 <c:if test="${not empty r.note}">
                                                     <div class="p-3 bg-white rounded-xl border border-slate-200/60 text-slate-600 text-[11px] leading-relaxed">
                                                         <strong class="text-slate-700">Ghi chú:</strong> <c:out value="${r.note}" />
                                                     </div>
                                                 </c:if>
 
-                                                <c:if test="${not empty r.filePath}">
-                                                    <div class="pt-1 flex justify-end">
+                                                <div class="pt-1 flex flex-wrap justify-end gap-2">
+                                                    <c:if test="${r.reviewStatus == 'REJECTED' && isLeader && registration.topic.status != 'COMPLETED'}">
+                                                        <button type="button" class="btn-ui btn-ui-primary" data-report-retry="${r.id}">
+                                                            <i data-lucide="upload-cloud"></i> Nộp lại
+                                                        </button>
+                                                        <template id="reportRetry-${r.id}">
+                                                            <span data-retry-name><c:out value="${r.fileName}" /></span>
+                                                            <span data-retry-note><c:out value="${r.note}" /></span>
+                                                        </template>
+                                                    </c:if>
+                                                    <c:if test="${not empty r.filePath}">
                                                         <a href="${pageContext.request.contextPath}/reports/download/${r.id}"
                                                            class="btn-ui btn-ui-outline text-xs py-1.5 px-3" download>
                                                             <i data-lucide="download" class="w-3.5 h-3.5 text-sky-600"></i> Tải báo cáo
                                                         </a>
-                                                    </div>
-                                                </c:if>
+                                                    </c:if>
+                                                </div>
                                             </div>
                                         </c:forEach>
                                     </div>
@@ -196,6 +230,32 @@
 <jsp:include page="../common/footer.jsp" />
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const uploadForm = document.getElementById('reportUploadForm');
+        if (uploadForm) {
+            const notice = document.getElementById('reportRetryNotice');
+            const submitLabel = document.getElementById('reportSubmitLabel');
+            const resetUpload = function () {
+                uploadForm.reset();
+                document.getElementById('dropPreview').classList.remove('has-file');
+                notice.hidden = true;
+                submitLabel.textContent = 'Xác nhận nộp báo cáo';
+            };
+            document.querySelectorAll('[data-report-retry]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const content = document.getElementById('reportRetry-' + button.dataset.reportRetry).content;
+                    resetUpload();
+                    const name = content.querySelector('[data-retry-name]').textContent;
+                    uploadForm.elements.fileName.value = name;
+                    uploadForm.elements.note.value = content.querySelector('[data-retry-note]').textContent;
+                    document.getElementById('reportRetryName').textContent = name;
+                    notice.hidden = false;
+                    submitLabel.textContent = 'Xác nhận nộp lại báo cáo';
+                    notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('fileNameInput').focus({ preventScroll: true });
+                });
+            });
+            document.getElementById('cancelReportRetry').addEventListener('click', resetUpload);
+        }
         const feedback = document.querySelector('[data-report-feedback="error"]')
             || document.querySelector('[data-report-feedback="success"]');
         if (!feedback || typeof Swal === 'undefined') return;

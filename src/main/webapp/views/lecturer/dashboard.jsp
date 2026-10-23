@@ -209,12 +209,12 @@
                                     </a>
                                 </div>
 
-                                <table class="w-full text-left border-collapse">
+                                <table class="w-full text-left border-collapse datatable-pagination" data-page-size="5">
                                     <thead>
                                         <tr>
                                             <th class="w-[42%]">Mã và Tên Đề tài</th>
-                                            <th class="w-[20%]">Vai trò</th>
-                                            <th class="w-[20%]">Đồng HD</th>
+                                            <th class="w-[14%]">Vai trò</th>
+                                            <th class="w-[26%]">Đồng HD</th>
                                             <th class="w-[18%] text-center">Trạng thái</th>
                                         </tr>
                                     </thead>
@@ -243,7 +243,7 @@
                                                 <td class="align-top whitespace-nowrap">
                                                     <span
                                                         class="status-badge ${t.lecturer.id == lecturer.id ? 'status-info' : 'status-neutral'}">
-                                                        ${t.lecturer.id == lecturer.id ? 'Giảng viên hướng dẫn chính' : 'Đồng HD'}
+                                                        ${t.lecturer.id == lecturer.id ? 'GVHD' : 'Đồng HD'}
                                                     </span>
                                                 </td>
                                                 <td class="align-top text-slate-600 font-medium">

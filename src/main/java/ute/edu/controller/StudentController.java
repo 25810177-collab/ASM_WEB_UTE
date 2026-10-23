@@ -354,12 +354,23 @@ public class StudentController {
         TopicRegistration registration = (myGroup != null)
                 ? registrationService.getActiveRegistrationForGroup(myGroup.getId())
                 : null;
+        if (registration == null && myGroup != null) {
+            registration = registrationService.getByGroupId(myGroup.getId()).stream().findFirst().orElse(null);
+        }
+        Topic registeredTopic = registration != null ? registration.getTopic() : null;
+        boolean canRegisterAgain = registration != null && registration.getStatus() == RegistrationStatus.REJECTED
+                && myGroup.getTopic() == null && registeredTopic != null
+                && RegistrationPeriodService.isStudentWindow(registeredTopic.getRegistrationPeriod())
+                && myGroup.getRegistrationPeriod() != null
+                && Objects.equals(myGroup.getRegistrationPeriod().getId(), registeredTopic.getRegistrationPeriod().getId())
+                && (registeredTopic.getStatus() == TopicStatus.PUBLISHED || registeredTopic.getStatus() == TopicStatus.APPROVED);
 
         model.addAttribute("student", student);
         model.addAttribute("myGroup", myGroup);
         model.addAttribute("members", members);
         model.addAttribute("canChangeMembers", groupService.canChangeMembers(myGroup));
         model.addAttribute("registration", registration);
+        model.addAttribute("canRegisterAgain", canRegisterAgain);
         model.addAttribute("activePeriod", periodService.getActivePeriod());
         model.addAttribute("openPeriods", periodService.getOpenStudentPeriods());
 
@@ -606,6 +617,7 @@ public class StudentController {
         Double processScore = (assignment != null) ? scoringService.calculateProcessAverageScore(assignment.getId())
                 : null;
         Double avgScore = (published && assignment != null) ? scoringService.calculateFinalScore(assignment.getId()) : null;
+        Double councilScore = published ? scoringService.calculateAverageScore(assignment.getId()) : null;
 
         model.addAttribute("student", student);
         model.addAttribute("myGroup", myGroup);
@@ -615,6 +627,7 @@ public class StudentController {
         model.addAttribute("processEvaluations", processEvaluations);
         model.addAttribute("processScore", processScore);
         model.addAttribute("avgScore", avgScore);
+        model.addAttribute("councilScore", councilScore);
         model.addAttribute("scoringService", scoringService);
 
         return "student/results";

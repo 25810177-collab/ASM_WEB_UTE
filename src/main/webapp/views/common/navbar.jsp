@@ -253,10 +253,12 @@
                                     <i data-lucide="scale" class="w-4 h-4 text-purple-600"></i>
                                     <span>Quản lý hội đồng phản biện</span>
                                 </a>
+                                <c:if test="${sessionScope.userRole == 'ADMIN'}">
                                 <a href="${pageContext.request.contextPath}/admin/users" class="command-item">
                                     <i data-lucide="user-cog" class="w-4 h-4 text-rose-600"></i>
                                     <span>Quản lý tài khoản người dùng</span>
                                 </a>
+                                </c:if>
                             </c:when>
                             <c:when test="${sessionScope.userRole == 'LECTURER'}">
                                 <a href="${pageContext.request.contextPath}/lecturer/dashboard" class="command-item">
