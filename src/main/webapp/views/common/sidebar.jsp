@@ -100,12 +100,14 @@
                                                 <span class="nav-badge">${unreadNotifCount}</span>
                                             </c:if>
                                         </a>
+                                        <c:if test="${sessionScope.userRole == 'ADMIN'}">
                                         <a href="${ctx}/admin/users"
                                             class="sidebar-link ${fn:contains(uri, '/admin/users') || activeMenu == 'users' ? 'is-active' : ''}"
                                             title="Tài khoản và Hồ sơ">
                                             <i data-lucide="contact"></i>
                                             <span class="nav-label">Tài khoản và Hồ sơ</span>
                                         </a>
+                                        </c:if>
                                     </div>
                                 </div>
                             </c:when>
@@ -234,31 +236,5 @@
                 </div>
 
                 <!-- Sidebar Footer with User Card -->
-                <div class="sidebar-footer">
-                    <div class="sidebar-user-card">
-                        <div class="sidebar-user-avatar">
-                            <c:out value="${fn:substring(sessionScope.user != null ? sessionScope.user.fullName : 'U', 0, 1)}" />
-                        </div>
-                        <div class="sidebar-user-info">
-                            <div class="sidebar-user-name">
-                                <c:out value="${sessionScope.user != null ? sessionScope.user.fullName : 'Khách'}" />
-                            </div>
-                            <div>
-                                <c:choose>
-                                    <c:when test="${sessionScope.userRole == 'ADMIN'}"><span
-                                            class="sidebar-user-role role-admin">ADMIN</span></c:when>
-                                    <c:when test="${sessionScope.userRole == 'DEAN'}"><span
-                                            class="sidebar-user-role role-dean">TRƯỞNG KHOA</span></c:when>
-                                    <c:when test="${sessionScope.userRole == 'LECTURER'}"><span
-                                            class="sidebar-user-role role-lecturer">GIẢNG VIÊN</span></c:when>
-                                    <c:otherwise><span class="sidebar-user-role role-student">SINH VIÊN</span>
-                                    </c:otherwise>
-                                </c:choose>
-                            </div>
-                        </div>
-                        <a href="${ctx}/logout" class="sidebar-logout-btn" title="Đăng xuất">
-                            <i data-lucide="log-out" class="w-4 h-4"></i>
-                        </a>
-                    </div>
-                </div>
+                
             </aside>

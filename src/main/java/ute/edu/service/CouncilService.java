@@ -8,7 +8,9 @@ import ute.edu.entity.*;
 import ute.edu.enums.CommitteeRole;
 import ute.edu.enums.CouncilStatus;
 import ute.edu.enums.AssignmentStatus;
+import ute.edu.enums.UserRole;
 import ute.edu.repository.*;
+import ute.edu.validation.FormValidationException;
 
 /**
  * Service quản lý hội đồng, thành viên hội đồng và phân công đề tài.
@@ -48,8 +50,87 @@ public class CouncilService {
         return councilRepository.findByRegistrationPeriodIdOrderByCreatedAtDescIdDesc(periodId);
     }
 
+    /** Danh sách chọn thành viên khi lập hội đồng, không bao gồm Trưởng khoa. */
+    public List<Lecture> getCouncilCandidates() {
+        return lectureRepository.findAll(org.springframework.data.domain.Sort.by(
+                org.springframework.data.domain.Sort.Direction.DESC, "user.createdAt", "id")).stream()
+                .filter(lecturer -> lecturer.getUser() != null && lecturer.getUser().getRole() != UserRole.DEAN)
+                .toList();
+    }
+
     public ReviewCouncil findById(Long id) {
         return councilRepository.findById(id).orElse(null);
+    }
+
+    /** Thu thập lỗi cùng lúc để hiển thị ngay dưới từng trường của form. */
+    public java.util.Map<String, String> getCreationValidationErrors(ReviewCouncil council,
+            Long chairmanId, Long secretaryId, List<Long> memberIds) {
+        return getValidationErrors(council, chairmanId, secretaryId, memberIds, null);
+    }
+
+    public java.util.Map<String, String> getUpdateValidationErrors(Long councilId, ReviewCouncil changes,
+            Long chairmanId, Long secretaryId, List<Long> memberIds) {
+        ReviewCouncil current = findById(councilId);
+        if (current == null) throw new IllegalArgumentException("Không tìm thấy hội đồng.");
+        return getValidationErrors(changes, chairmanId, secretaryId, memberIds, current);
+    }
+
+    private java.util.Map<String, String> getValidationErrors(ReviewCouncil council,
+            Long chairmanId, Long secretaryId, List<Long> memberIds, ReviewCouncil current) {
+        var errors = new java.util.LinkedHashMap<String, String>();
+        String code = council.getCode() == null ? "" : council.getCode().trim();
+        if (code.isEmpty()) errors.put("code", "Vui lòng nhập mã hội đồng.");
+        else if (code.length() > 30) errors.put("code", "Mã hội đồng không được quá 30 ký tự.");
+        else if (current == null ? councilRepository.existsByCodeIgnoreCase(code)
+                : councilRepository.existsByCodeIgnoreCaseAndIdNot(code, current.getId()))
+            errors.put("code", "Mã hội đồng đã tồn tại. Vui lòng nhập mã khác.");
+        String name = council.getName() == null ? "" : council.getName().trim();
+        if (name.isEmpty()) errors.put("name", "Vui lòng nhập tên hội đồng.");
+        else if (name.length() > 255) errors.put("name", "Tên hội đồng không được quá 255 ký tự.");
+        String location = council.getLocation() == null ? "" : council.getLocation().trim();
+        if (location.isEmpty()) errors.put("location", "Vui lòng nhập địa điểm / phòng báo cáo.");
+        else if (location.length() > 255) errors.put("location", "Địa điểm không được quá 255 ký tự.");
+        RegistrationPeriod period = council.getRegistrationPeriod();
+        if (period == null) errors.put("periodId", "Vui lòng chọn đợt đăng ký hợp lệ.");
+        else if (period.getCouncilReportDate() == null)
+            errors.put("periodId", "Đợt đăng ký chưa thiết lập ngày báo cáo hội đồng.");
+        else if (!RegistrationPeriodService.canCreateCouncil(period)
+                && (current == null || current.getRegistrationPeriod() == null
+                    || !period.getId().equals(current.getRegistrationPeriod().getId())))
+            errors.put("periodId", "Đợt đăng ký chưa mở, đã đóng hoặc đã qua ngày báo cáo hội đồng.");
+        if (council.getDepartment() == null)
+            errors.put("departmentId", "Vui lòng chọn khoa quản lý hợp lệ.");
+        if (chairmanId == null) errors.put("chairmanId", "Vui lòng chọn Chủ tịch hội đồng.");
+        if (secretaryId == null) errors.put("secretaryId", "Vui lòng chọn Thư ký hội đồng.");
+        if (chairmanId != null && chairmanId.equals(secretaryId)) {
+            errors.put("chairmanId", "Chủ tịch và Thư ký không được trùng nhau.");
+            errors.put("secretaryId", "Chủ tịch và Thư ký không được trùng nhau.");
+        }
+        var selectedIds = new java.util.TreeSet<Long>();
+        if (chairmanId != null) selectedIds.add(chairmanId);
+        if (secretaryId != null) selectedIds.add(secretaryId);
+        if (memberIds != null) memberIds.stream().filter(java.util.Objects::nonNull).forEach(selectedIds::add);
+        if (selectedIds.size() < 3 || selectedIds.size() > 5)
+            errors.put("memberIds", "Hội đồng phải có từ 3 đến 5 giảng viên, gồm Chủ tịch và Thư ký.");
+        for (Long lecturerId : selectedIds) {
+            String field = lecturerId.equals(chairmanId) ? "chairmanId"
+                    : lecturerId.equals(secretaryId) ? "secretaryId" : "memberIds";
+            Lecture lecturer = lectureRepository.findById(lecturerId).orElse(null);
+            if (lecturer == null) errors.putIfAbsent(field, "Giảng viên đã chọn không tồn tại.");
+            else if (lecturer.getUser() != null && lecturer.getUser().getRole() == UserRole.DEAN
+                    && (current == null || current.getMembers().stream()
+                        .noneMatch(member -> lecturerId.equals(member.getLecturer().getId()))))
+                errors.putIfAbsent(field, "Không thể chọn Trưởng khoa làm thành viên hội đồng.");
+            else if (council.getDepartment() != null && (lecturer.getDepartment() == null
+                    || !council.getDepartment().getId().equals(lecturer.getDepartment().getId())))
+                errors.putIfAbsent(field, "Giảng viên phải thuộc khoa quản lý của hội đồng.");
+            else if (period != null && (current == null
+                    ? memberRepository.existsByLecturerIdAndCouncilRegistrationPeriodId(lecturerId, period.getId())
+                    : memberRepository.existsByLecturerIdAndCouncilRegistrationPeriodIdAndCouncilIdNot(
+                            lecturerId, period.getId(), current.getId())))
+                errors.putIfAbsent(field, "Giảng viên đã tham gia một hội đồng trong đợt này. Vui lòng chọn người khác.");
+        }
+        return errors;
     }
 
     @Transactional
@@ -59,45 +140,26 @@ public class CouncilService {
     public ReviewCouncil createCouncil(ReviewCouncil council, Long chairmanId, Long secretaryId, List<Long> memberIds) {
         if (council.getId() != null)
             throw new IllegalArgumentException("Không thể ghi đè hội đồng hiện có qua thao tác tạo mới!");
-        String code = council.getCode() == null ? "" : council.getCode().trim();
-        if (code.isEmpty()) {
-            throw new IllegalArgumentException("Vui lòng nhập mã hội đồng!");
-        }
-        if (councilRepository.existsByCodeIgnoreCase(code)) {
-            throw new IllegalArgumentException("Mã hội đồng \"" + code + "\" đã tồn tại. Vui lòng nhập mã khác!");
-        }
-        council.setCode(code);
+        var errors = getCreationValidationErrors(council, chairmanId, secretaryId, memberIds);
+        if (!errors.isEmpty()) throw new FormValidationException(errors);
+        council.setName(council.getName().trim());
+        council.setLocation(council.getLocation().trim());
+        council.setCode(council.getCode().trim());
         RegistrationPeriod period = council.getRegistrationPeriod();
-        if (period == null || period.getCouncilReportDate() == null) {
-            throw new IllegalArgumentException("Đợt đăng ký chưa thiết lập ngày báo cáo hội đồng!");
-        }
-        if (!RegistrationPeriodService.canCreateCouncil(period)) {
-            throw new IllegalArgumentException("Đợt đăng ký đã đóng hoặc đã qua ngày báo cáo hội đồng!");
-        }
         council.setCouncilDate(period.getCouncilReportDate());
-        if (chairmanId == null || secretaryId == null) {
-            throw new IllegalArgumentException("Chủ tịch và Thư ký hội đồng là bắt buộc");
-        }
-        if (chairmanId.equals(secretaryId)) {
-            throw new IllegalArgumentException("Chủ tịch và Thư ký không được trùng nhau");
-        }
-
-        if (council.getDepartment() == null) {
-            throw new IllegalArgumentException("Khoa quản lý hội đồng là bắt buộc");
-        }
         Long departmentId = council.getDepartment().getId();
         var selectedIds = new java.util.TreeSet<Long>();
         selectedIds.add(chairmanId);
         selectedIds.add(secretaryId);
         if (memberIds != null) memberIds.stream().filter(java.util.Objects::nonNull).forEach(selectedIds::add);
-        if (selectedIds.size() < 3 || selectedIds.size() > 5) {
-            throw new IllegalArgumentException("Hội đồng phải có từ 3 đến 5 giảng viên!");
-        }
         var selectedLecturers = new java.util.LinkedHashMap<Long, Lecture>();
         // Lấy khóa theo cùng thứ tự để tránh deadlock khi hai yêu cầu có giảng viên chung.
         for (Long lecturerId : selectedIds) {
             Lecture lecturer = lectureRepository.findForUpdate(lecturerId)
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy giảng viên " + lecturerId));
+            if (lecturer.getUser() != null && lecturer.getUser().getRole() == UserRole.DEAN) {
+                throw new IllegalArgumentException("Không thể chọn Trưởng khoa làm thành viên hội đồng!");
+            }
             if (lecturer.getDepartment() == null || !departmentId.equals(lecturer.getDepartment().getId())) {
                 throw new IllegalArgumentException("Tất cả thành viên phải thuộc khoa quản lý của hội đồng!");
             }
@@ -105,8 +167,11 @@ public class CouncilService {
         }
         for (Long lecturerId : selectedIds) {
             if (!memberRepository.findMembershipIdsForUpdate(lecturerId, period.getId()).isEmpty()) {
-                throw new IllegalStateException("Giảng viên " + selectedLecturers.get(lecturerId).getUser().getFullName()
-                        + " đã tham gia một hội đồng trong đợt đăng ký này. Vui lòng chọn giảng viên khác!");
+                String field = lecturerId.equals(chairmanId) ? "chairmanId"
+                        : lecturerId.equals(secretaryId) ? "secretaryId" : "memberIds";
+                throw new FormValidationException(java.util.Map.of(field,
+                        "Giảng viên " + selectedLecturers.get(lecturerId).getUser().getFullName()
+                        + " đã tham gia một hội đồng trong đợt đăng ký này. Vui lòng chọn giảng viên khác!"));
             }
         }
         council.setChairman(selectedLecturers.get(chairmanId));
@@ -124,6 +189,58 @@ public class CouncilService {
         }
 
         return saved;
+    }
+
+    /** Dùng cùng khóa với phân công đề tài để không thể sửa sau khi đã có phân công. */
+    @Transactional
+    public ReviewCouncil updateCouncil(Long councilId, ReviewCouncil changes,
+            Long chairmanId, Long secretaryId, List<Long> memberIds) {
+        ReviewCouncil current = councilRepository.findForUpdate(councilId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hội đồng."));
+        if (assignmentRepository.existsByCouncilId(councilId))
+            throw new IllegalStateException("Hội đồng đã phân công đề tài, chỉ được xem thông tin và không thể chỉnh sửa.");
+        var errors = getValidationErrors(changes, chairmanId, secretaryId, memberIds, current);
+        if (!errors.isEmpty()) throw new FormValidationException(errors);
+        var selectedIds = new java.util.TreeSet<Long>();
+        selectedIds.add(chairmanId);
+        selectedIds.add(secretaryId);
+        if (memberIds != null) memberIds.stream().filter(java.util.Objects::nonNull).forEach(selectedIds::add);
+        var selectedLecturers = new java.util.LinkedHashMap<Long, Lecture>();
+        for (Long lecturerId : selectedIds) {
+            String field = lecturerId.equals(chairmanId) ? "chairmanId"
+                    : lecturerId.equals(secretaryId) ? "secretaryId" : "memberIds";
+            Lecture lecturer = lectureRepository.findForUpdate(lecturerId)
+                    .orElseThrow(() -> new FormValidationException(java.util.Map.of(field, "Giảng viên không còn tồn tại.")));
+            if (lecturer.getDepartment() == null
+                    || !changes.getDepartment().getId().equals(lecturer.getDepartment().getId()))
+                throw new FormValidationException(java.util.Map.of(field, "Giảng viên phải thuộc khoa quản lý của hội đồng."));
+            if (!memberRepository.findOtherMembershipIdsForUpdate(
+                    lecturerId, changes.getRegistrationPeriod().getId(), councilId).isEmpty())
+                throw new FormValidationException(java.util.Map.of(field,
+                        "Giảng viên đã tham gia một hội đồng khác trong đợt này. Vui lòng chọn người khác."));
+            selectedLecturers.put(lecturerId, lecturer);
+        }
+        current.setCode(changes.getCode().trim());
+        current.setName(changes.getName().trim());
+        current.setLocation(changes.getLocation().trim());
+        current.setDepartment(changes.getDepartment());
+        current.setRegistrationPeriod(changes.getRegistrationPeriod());
+        current.setCouncilDate(changes.getRegistrationPeriod().getCouncilReportDate());
+        current.setChairman(selectedLecturers.get(chairmanId));
+        current.setSecretary(selectedLecturers.get(secretaryId));
+        memberRepository.deleteByCouncilId(councilId);
+        memberRepository.flush();
+        current.getMembers().clear();
+        for (var entry : selectedLecturers.entrySet()) {
+            var member = new ReviewCouncilMember();
+            member.setCouncil(current);
+            member.setLecturer(entry.getValue());
+            member.setRole(entry.getKey().equals(chairmanId) ? CommitteeRole.CHAIRMAN
+                    : entry.getKey().equals(secretaryId) ? CommitteeRole.SECRETARY : CommitteeRole.MEMBER);
+            memberRepository.save(member);
+            current.getMembers().add(member);
+        }
+        return councilRepository.save(current);
     }
 
     @Transactional

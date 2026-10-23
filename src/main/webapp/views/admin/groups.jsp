@@ -21,14 +21,32 @@
                 </div>
                 <div>
                     <h2 class="text-base font-bold text-slate-900 leading-tight">Danh sách nhóm sinh viên</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Tổng số <strong class="text-sky-700">${fn:length(groups)}</strong> nhóm đã thành lập</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Đang hiển thị <strong id="groupCount" aria-live="polite" class="text-sky-700">${fn:length(groups)}</strong> / ${fn:length(groups)} nhóm đã thành lập</p>
                 </div>
             </div>
-            <div class="relative w-full sm:w-80">
+        </div>
+
+        <!-- Bộ lọc nhóm sinh viên -->
+        <div class="admin-filter-bar bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="relative">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                <input type="text" id="groupSearchInput" onkeyup="filterGroupsTable()" placeholder="Tìm theo tên nhóm, nhóm trưởng, MSSV..." 
+                <input type="search" id="groupSearchInput" oninput="filterGroupsTable()" aria-label="Tìm nhóm sinh viên" placeholder="Tìm theo tên nhóm, nhóm trưởng, MSSV..."
                        class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
             </div>
+            <select id="groupPeriodFilter" onchange="filterGroupsTable()" aria-label="Lọc theo đợt đăng ký"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
+                <option value="">-- Tất cả đợt đăng ký --</option>
+                <c:forEach var="p" items="${periods}">
+                    <option value="${p.id}"><c:out value="${p.name}" /></option>
+                </c:forEach>
+            </select>
+            <select id="groupDepartmentFilter" onchange="filterGroupsTable()" aria-label="Lọc theo khoa"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
+                <option value="">-- Tất cả khoa --</option>
+                <c:forEach var="d" items="${departments}">
+                    <option value="${d.id}"><c:out value="${d.name}" /></option>
+                </c:forEach>
+            </select>
         </div>
 
         <!-- Groups Table Shell -->
@@ -37,7 +55,7 @@
                 <table class="w-full text-left border-collapse min-w-[960px]" id="groupsTable">
                     <thead>
                         <tr>
-                            <th class="whitespace-nowrap">Tên Nhóm và Đợt</th>
+                            <th class="whitespace-nowrap">Tên Nhóm, Khoa và Đợt</th>
                             <th class="whitespace-nowrap">Nhóm Trưởng</th>
                             <th class="min-w-[200px]">Thành viên khác</th>
                             <th class="min-w-[260px]">Đề tài Đăng ký</th>
@@ -46,9 +64,14 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-xs">
                         <c:forEach var="g" items="${groups}">
-                            <tr class="hover:bg-slate-50/80 transition-colors group-row">
+                            <tr class="hover:bg-slate-50/80 transition-colors group-row"
+                                data-period-id="${g.registrationPeriod.id}"
+                                data-department-id="${g.leader.department.id}">
                                 <td class="align-middle">
                                     <div class="font-extrabold text-slate-900 text-xs"><c:out value="${g.name}" /></div>
+                                    <div class="text-[11px] text-slate-500 mt-1 font-medium">
+                                        <c:out value="${g.leader.department != null ? g.leader.department.name : 'Chưa xác định khoa'}" />
+                                    </div>
                                     <div class="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
                                         <span><c:out value="${g.registrationPeriod != null ? g.registrationPeriod.name : 'Chung'}" /></span>
                                     </div>
@@ -109,6 +132,13 @@
                                 </td>
                             </tr>
                         </c:forEach>
+                        <tr id="groupsNoMatches" class="table-empty-row" style="display: none;">
+                            <td colspan="5">
+                                <div class="empty-state py-8">
+                                    <div class="empty-state-desc text-xs mb-0">Không có nhóm sinh viên phù hợp với bộ lọc đã chọn.</div>
+                                </div>
+                            </td>
+                        </tr>
                         <c:if test="${empty groups}">
                             <tr class="table-empty-row">
                                 <td colspan="5">
@@ -131,11 +161,23 @@
 
 <script>
     function filterGroupsTable() {
-        const input = document.getElementById('groupSearchInput').value.toLowerCase();
+        const input = document.getElementById('groupSearchInput').value.trim().toLowerCase();
+        const periodId = document.getElementById('groupPeriodFilter').value;
+        const departmentId = document.getElementById('groupDepartmentFilter').value;
         const rows = document.querySelectorAll('.group-row');
+        let count = 0;
         rows.forEach(row => {
-            const text = row.innerText.toLowerCase();
-            row.style.display = text.includes(input) ? '' : 'none';
+            const matches = row.textContent.toLowerCase().includes(input)
+                && (!periodId || row.dataset.periodId === periodId)
+                && (!departmentId || row.dataset.departmentId === departmentId);
+            row.dataset.searchHidden = matches ? 'false' : 'true';
+            row.style.display = matches ? '' : 'none';
+            if (matches) count++;
         });
+        document.getElementById('groupCount').textContent = count;
+        document.getElementById('groupsNoMatches').style.display = rows.length > 0 && count === 0 ? '' : 'none';
+        const table = document.getElementById('groupsTable');
+        if (table && table._renderPagination) table._renderPagination();
     }
+    document.addEventListener('DOMContentLoaded', filterGroupsTable);
 </script>

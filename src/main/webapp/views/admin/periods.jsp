@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <c:set scope="request" var="pageTitle" value="Quản lý đợt đăng ký" />
 <c:set scope="request" var="pageHeading" value="Quản lý đợt đăng ký đề tài" />
 <c:set scope="request" var="pageSubheading" value="Thiết lập các mốc thời gian, điều kiện ràng buộc GVPB và Hội đồng phản biện" />
@@ -24,10 +25,19 @@
                     <p class="text-xs text-slate-500 mt-0.5">Hiện có <strong class="text-sky-700">${fn:length(periods)}</strong> đợt trong hệ thống</p>
                 </div>
             </div>
-            <button class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm" 
+            <c:choose>
+                <c:when test="${not empty editingPeriodId}">
+                    <a href="${pageContext.request.contextPath}/admin/periods/new" class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tạo đợt đăng ký mới
+                    </a>
+                </c:when>
+                <c:otherwise>
+            <button class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm"
                     data-bs-toggle="modal" data-bs-target="#createPeriodModal">
                 <i data-lucide="plus-circle" class="w-4 h-4"></i> Tạo đợt đăng ký mới
             </button>
+                </c:otherwise>
+            </c:choose>
         </div>
 
         <!-- Grid Cards of Registration Periods -->
@@ -57,7 +67,7 @@
                              data-end="${p.studentEndDate}">
                             <div class="flex justify-between text-[11px] font-bold text-slate-600">
                                 <span>Tiến độ đợt</span>
-                                <span class="text-sky-700 progress-label">${p.status == 'OPEN' ? 'Đang diễn ra' : p.status == 'CLOSED' ? 'Đã kết thúc' : 'Chưa bắt đầu'}</span>
+                                <span class="text-sky-700 progress-label">${editablePeriods[p.id] ? 'Chưa bắt đầu' : p.status == 'OPEN' ? 'Đang diễn ra' : p.status == 'CLOSED' ? 'Đã kết thúc' : 'Bản nháp'}</span>
                             </div>
                             <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                                 <div class="progress-bar h-2 rounded-full transition-all duration-500 ${p.status == 'OPEN' ? 'bg-sky-600' : p.status == 'CLOSED' ? 'bg-slate-400' : 'bg-amber-500'}"
@@ -101,12 +111,20 @@
                     <!-- Footer Action -->
                     <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                         <span>Khởi tạo: <strong class="text-slate-600"><c:out value="${p.createdBy != null ? p.createdBy.fullName : 'Quản trị viên'}" /></strong></span>
+                        <div class="flex items-center gap-1">
+                            <a href="${pageContext.request.contextPath}/admin/periods/${p.id}"
+                                class="btn-icon p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                                title="${editablePeriods[p.id] ? 'Xem / Chỉnh sửa đợt đăng ký' : 'Xem đợt đăng ký'}"
+                                aria-label="${editablePeriods[p.id] ? 'Xem / Chỉnh sửa đợt đăng ký' : 'Xem đợt đăng ký'}">
+                                <i data-lucide="${editablePeriods[p.id] ? 'square-pen' : 'eye'}" class="w-4 h-4"></i>
+                            </a>
                         <form method="post" action="${pageContext.request.contextPath}/admin/periods/${p.id}/delete" onsubmit="return confirmDeletePeriod(event, '${p.name}');">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
-                            <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa đợt">
+                            <button type="submit" class="btn-icon p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa đợt">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </form>
+                        </div>
                     </div>
                 </div>
             </c:forEach>
@@ -114,21 +132,32 @@
     </main>
 
     <!-- Modal Tạo Đợt Đăng Ký Mới -->
-    <div class="modal fade" id="createPeriodModal" tabindex="-1">
+    <div class="modal fade" id="createPeriodModal" tabindex="-1" aria-labelledby="createPeriodTitle" aria-hidden="true" data-reopen="${periodFormHasErrors or periodFormOpen}">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content rounded-3xl border-0 shadow-2xl overflow-hidden">
-                <form method="post" class="managed-modal-form" action="${pageContext.request.contextPath}/admin/periods/save">
-                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                <form:form modelAttribute="period" id="createPeriodForm" method="post" cssClass="managed-modal-form" novalidate="novalidate" action="${pageContext.request.contextPath}/admin/periods/save">
+                    <form:hidden path="id" />
                     <div class="bg-gradient-to-r from-sky-700 to-blue-900 px-6 py-4 text-white flex justify-between items-center">
-                        <h5 class="text-base font-bold flex items-center gap-2">
-                            <i data-lucide="calendar-plus" class="w-5 h-5 text-sky-300"></i> Tạo đợt đăng ký đề tài mới
+                        <h5 id="createPeriodTitle" class="text-base font-bold flex items-center gap-2">
+                            <i data-lucide="calendar-plus" class="w-5 h-5 text-sky-300"></i>
+                            ${periodReadOnly ? 'Thông tin đợt đăng ký' : not empty editingPeriodId ? 'Chỉnh sửa đợt đăng ký' : 'Tạo đợt đăng ký đề tài mới'}
                         </h5>
-                        <button type="button" class="text-white/80 hover:text-white p-1" data-bs-dismiss="modal">
+                        <button type="button" class="btn-icon text-white/80 hover:text-white p-1" data-bs-dismiss="modal" aria-label="Đóng">
                             <i data-lucide="x" class="w-5 h-5"></i>
                         </button>
                     </div>
 
                     <div class="modal-body p-6 space-y-4">
+                        <c:if test="${periodFormHasErrors}">
+                            <p role="alert" class="form-field-error">Chưa thể lưu đợt đăng ký. Vui lòng sửa các thông tin được đánh dấu bên dưới.</p>
+                        </c:if>
+                        <form:errors path="" element="div" cssClass="form-field-error" />
+                        <form:errors path="id" element="p" cssClass="form-field-error" />
+                        <c:if test="${periodReadOnly}">
+                            <p class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800" role="status">
+                                Đợt đăng ký đã bắt đầu hoặc đã đóng. Bạn chỉ có thể xem thông tin, không thể chỉnh sửa.
+                            </p>
+                        </c:if>
                         <!-- Rule notification banner -->
                         <div class="bg-sky-50 border border-sky-200 text-sky-950 rounded-2xl p-4 text-xs flex items-start gap-2.5">
                             <i data-lucide="info" class="w-4 h-4 text-sky-600 mt-0.5 shrink-0"></i>
@@ -139,28 +168,34 @@
                         </div>
 
                         <!-- Name -->
+                        <fieldset class="space-y-4 min-w-0" ${periodReadOnly ? 'disabled' : ''}>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên đợt đăng ký <span class="text-rose-500">*</span></label>
-                            <input type="text" name="name" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ví dụ: Đợt KLTN Học kỳ 2 năm học 2026-2027" required>
+                            <label for="periodNameInput" class="block text-xs font-bold text-slate-700 mb-1.5">Tên đợt đăng ký <span class="text-rose-500">*</span></label>
+                            <form:input path="name" id="periodNameInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="periodNameError" maxlength="255" placeholder="Ví dụ: Đợt KLTN Học kỳ 2 năm học 2026-2027" required="required" />
+                            <form:errors path="name" id="periodNameError" element="p" cssClass="form-field-error" />
                         </div>
 
                         <!-- Type và Status -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Loại đợt đăng ký <span class="text-rose-500">*</span></label>
-                                <select name="type" id="periodTypeSelect" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none" onchange="handlePeriodTypeChange(this.value)" required>
-                                    <option value="KLTN">KHÓA LUẬN TỐT NGHIỆP (KLTN)</option>
-                                    <option value="TLCN">TIỂU LUẬN CHUYÊN NGÀNH (TLCN)</option>
-                                    <option value="NCKH">NGHIÊN CỨU KHOA HỌC (NCKH)</option>
-                                </select>
+                                <label for="periodTypeSelect" class="block text-xs font-bold text-slate-700 mb-1.5">Loại đợt đăng ký <span class="text-rose-500">*</span></label>
+                                <form:select path="type" id="periodTypeSelect" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="periodTypeError" onchange="handlePeriodTypeChange(this.value)" required="required">
+                                    <form:option value="">-- Chọn loại đợt --</form:option>
+                                    <form:option value="KLTN">KHÓA LUẬN TỐT NGHIỆP (KLTN)</form:option>
+                                    <form:option value="TLCN">TIỂU LUẬN CHUYÊN NGÀNH (TLCN)</form:option>
+                                    <form:option value="NCKH">NGHIÊN CỨU KHOA HỌC (NCKH)</form:option>
+                                </form:select>
+                                <form:errors path="type" id="periodTypeError" element="p" cssClass="form-field-error" />
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Trạng thái khởi tạo</label>
-                                <select name="status" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                                    <option value="OPEN">MỞ</option>
-                                    <option value="DRAFT">BẢN NHÁP</option>
-                                    <option value="CLOSED">ĐÓNG</option>
-                                </select>
+                                <label for="periodStatusSelect" class="block text-xs font-bold text-slate-700 mb-1.5">${not empty editingPeriodId ? 'Trạng thái' : 'Trạng thái khởi tạo'}</label>
+                                <form:select path="status" id="periodStatusSelect" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="periodStatusError" required="required">
+                                    <form:option value="">-- Chọn trạng thái --</form:option>
+                                    <form:option value="OPEN">MỞ</form:option>
+                                    <form:option value="DRAFT">BẢN NHÁP</form:option>
+                                    <form:option value="CLOSED">ĐÓNG</form:option>
+                                </form:select>
+                                <form:errors path="status" id="periodStatusError" element="p" cssClass="form-field-error" />
                             </div>
                         </div>
 
@@ -171,20 +206,24 @@
                             </h6>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">GV bắt đầu đề xuất</label>
-                                    <input type="date" name="lecturerStartDate" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <label for="lecturerStartDateInput" class="block text-[11px] font-semibold text-slate-600 mb-1">GV bắt đầu đề xuất</label>
+                                    <form:input type="date" path="lecturerStartDate" id="lecturerStartDateInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="lecturerStartDateError" required="required" />
+                                    <form:errors path="lecturerStartDate" id="lecturerStartDateError" element="p" cssClass="form-field-error" />
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">GV kết thúc đề xuất</label>
-                                    <input type="date" name="lecturerEndDate" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <label for="lecturerEndDateInput" class="block text-[11px] font-semibold text-slate-600 mb-1">GV kết thúc đề xuất</label>
+                                    <form:input type="date" path="lecturerEndDate" id="lecturerEndDateInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="lecturerEndDateError" required="required" />
+                                    <form:errors path="lecturerEndDate" id="lecturerEndDateError" element="p" cssClass="form-field-error" />
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">SV bắt đầu đăng ký</label>
-                                    <input type="date" name="studentStartDate" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <label for="studentStartDateInput" class="block text-[11px] font-semibold text-slate-600 mb-1">SV bắt đầu đăng ký</label>
+                                    <form:input type="date" path="studentStartDate" id="studentStartDateInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="studentStartDateError" required="required" />
+                                    <form:errors path="studentStartDate" id="studentStartDateError" element="p" cssClass="form-field-error" />
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">SV kết thúc đăng ký</label>
-                                    <input type="date" name="studentEndDate" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <label for="studentEndDateInput" class="block text-[11px] font-semibold text-slate-600 mb-1">SV kết thúc đăng ký</label>
+                                    <form:input type="date" path="studentEndDate" id="studentEndDateInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="studentEndDateError" required="required" />
+                                    <form:errors path="studentEndDate" id="studentEndDateError" element="p" cssClass="form-field-error" />
                                 </div>
                             </div>
                         </div>
@@ -196,30 +235,35 @@
                             </h6>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div id="councilDateContainer" class="transition-all duration-300">
-                                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    <label for="councilDateInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
                                         Ngày báo cáo hội đồng <span class="text-rose-500" id="councilReqMark">*</span>
                                     </label>
-                                    <input type="date" name="councilReportDate" id="councilDateInput" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <form:input type="date" path="councilReportDate" id="councilDateInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="councilReportDateError" />
+                                    <form:errors path="councilReportDate" id="councilReportDateError" element="p" cssClass="form-field-error" />
                                     <span class="text-[10px] text-slate-500 mt-1 block">Bắt buộc đối với KLTN</span>
                                 </div>
                                 <div id="reviewerDeadlineContainer" class="transition-all duration-300">
-                                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">
+                                    <label for="reviewerDeadlineInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
                                         Hạn chót GVPB nộp điểm <span class="text-rose-500" id="reviewerReqMark">*</span>
                                     </label>
-                                    <input type="date" name="reviewerDeadline" id="reviewerDeadlineInput" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none" required>
+                                    <form:input type="date" path="reviewerDeadline" id="reviewerDeadlineInput" cssClass="period-field-control" cssErrorClass="period-field-control is-invalid" aria-describedby="reviewerDeadlineError" />
+                                    <form:errors path="reviewerDeadline" id="reviewerDeadlineError" element="p" cssClass="form-field-error" />
                                     <span class="text-[10px] text-slate-500 mt-1 block">Bắt buộc đối với TLCN và KLTN</span>
                                 </div>
                             </div>
                         </div>
+                        </fieldset>
                     </div>
 
                     <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-                        <button type="button" class="btn-ui btn-ui-outline text-xs" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn-ui btn-ui-primary text-xs">
-                            Lưu và áp dụng đợt
-                        </button>
+                        <button type="button" class="btn-ui btn-ui-outline text-xs" data-bs-dismiss="modal">${periodReadOnly ? 'Đóng' : 'Hủy'}</button>
+                        <c:if test="${not periodReadOnly}">
+                            <button type="submit" class="btn-ui btn-ui-primary text-xs">
+                                ${not empty editingPeriodId ? 'Lưu thay đổi' : 'Lưu và áp dụng đợt'}
+                            </button>
+                        </c:if>
                     </div>
-                </form>
+                </form:form>
             </div>
         </div>
     </div>
@@ -236,7 +280,7 @@
         const couMark = document.getElementById('councilReqMark');
         const couContainer = document.getElementById('councilDateContainer');
 
-        const needsPanel = (val === 'KLTN' || val === 'TLCN');
+        const needsPanel = (val === 'KLTN' || val === 'TLCN' || panel.querySelector('.form-field-error') || revInput.value || couInput.value);
         if (panel) {
             panel.classList.toggle('show', needsPanel);
         }
@@ -253,10 +297,12 @@
             revContainer.style.opacity = '1';
             revInput.required = true;
             revMark.style.display = 'inline';
-            couContainer.style.opacity = '0.45';
+            couContainer.style.opacity = '1';
             couInput.required = false;
             couMark.style.display = 'none';
         } else {
+            revContainer.style.opacity = '1';
+            couContainer.style.opacity = '1';
             revInput.required = false;
             couInput.required = false;
             revMark.style.display = 'none';
@@ -267,6 +313,18 @@
     document.addEventListener('DOMContentLoaded', function () {
         const sel = document.getElementById('periodTypeSelect');
         if (sel) handlePeriodTypeChange(sel.value);
+        const modal = document.getElementById('createPeriodModal');
+        if (modal.dataset.reopen === 'true') {
+            modal.querySelectorAll('.is-invalid').forEach(function (field) { field.setAttribute('aria-invalid', 'true'); });
+            modal.addEventListener('shown.bs.modal', function () {
+                const firstInvalid = modal.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus({ preventScroll: true });
+                    firstInvalid.scrollIntoView({ block: 'center' });
+                }
+            }, { once: true });
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
 
         document.querySelectorAll('.period-progress').forEach(function (el) {
             const status = el.dataset.status;

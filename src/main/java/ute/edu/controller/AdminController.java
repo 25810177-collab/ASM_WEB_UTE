@@ -1,6 +1,7 @@
 package ute.edu.controller;
 
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.servlet.http.HttpSession;
@@ -9,18 +10,16 @@ import ute.edu.enums.*;
 import ute.edu.entity.*;
 import ute.edu.repository.*;
 import ute.edu.service.*;
+import ute.edu.validation.FormValidationException;
+import ute.edu.validation.CouncilForm;
 
 import java.util.*;
-import jakarta.servlet.http.HttpServletResponse;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import java.io.IOException;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasAnyRole('ADMIN', 'DEAN', 'DEPARTMENT_HEAD')")
+@PreAuthorize("hasAnyRole('ADMIN', 'DEAN')")
 /**
  * Controller quản trị: quản lý đợt, đề tài, nhóm, hội đồng, điểm và thông báo.
  */
@@ -115,30 +114,97 @@ public class AdminController {
     @GetMapping("/periods")
     /** Hiển thị danh sách và form quản lý đợt đăng ký. */
     public String registrationPeriods(Model model) {
-        model.addAttribute("periods", periodService.getAll());
-        model.addAttribute("period", new RegistrationPeriod());
+        var periods = periodService.getAll();
+        model.addAttribute("periods", periods);
+        var editablePeriods = new HashMap<Long, Boolean>();
+        periods.forEach(period -> editablePeriods.put(period.getId(), RegistrationPeriodService.canEditPeriod(period)));
+        model.addAttribute("editablePeriods", editablePeriods);
+        if (!model.containsAttribute("period")) {
+            var period = new RegistrationPeriod();
+            period.setType(RegistrationType.KLTN);
+            period.setStatus(PeriodStatus.OPEN);
+            model.addAttribute("period", period);
+        }
         model.addAttribute("registrationTypes", RegistrationType.values());
         model.addAttribute("periodStatuses", PeriodStatus.values());
         return "admin/periods";
     }
 
+    @InitBinder("period")
+    public void bindPeriodFields(org.springframework.web.bind.WebDataBinder binder) {
+        binder.setAllowedFields("id", "name", "type", "status", "lecturerStartDate", "lecturerEndDate",
+                "studentStartDate", "studentEndDate", "councilReportDate", "reviewerDeadline");
+    }
+
+    @GetMapping("/periods/new")
+    public String newPeriod(Model model) {
+        model.addAttribute("periodFormOpen", true);
+        return registrationPeriods(model);
+    }
+
+    @GetMapping("/periods/{id}")
+    public String periodDetails(@PathVariable Long id, Model model) {
+        RegistrationPeriod period = requirePeriod(id);
+        model.addAttribute("period", period);
+        preparePeriodEditor(period, model);
+        return registrationPeriods(model);
+    }
+
+    private RegistrationPeriod requirePeriod(Long id) {
+        RegistrationPeriod period = periodService.findById(id);
+        if (period == null) throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy đợt đăng ký.");
+        return period;
+    }
+
+    private void preparePeriodEditor(RegistrationPeriod period, Model model) {
+        model.addAttribute("editingPeriodId", period.getId());
+        model.addAttribute("periodReadOnly", !RegistrationPeriodService.canEditPeriod(period));
+        model.addAttribute("periodFormOpen", true);
+    }
+
     @PostMapping("/periods/save")
     /** Lưu một đợt đăng ký mới hoặc cập nhật đợt hiện có. */
-    public String savePeriod(@ModelAttribute RegistrationPeriod period,
+    public String savePeriod(@ModelAttribute("period") RegistrationPeriod period,
+            BindingResult bindingResult,
+            Model model,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
-        try {
-            UserAccount adminUser = (UserAccount) session.getAttribute("user");
-            if (period.getCreatedBy() == null && adminUser != null) {
-                period.setCreatedBy(adminUser);
-            }
-            periodService.save(period);
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "Lưu đợt đăng ký '" + period.getName() + "' thành công!");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi lưu đợt đăng ký: " + ute.edu.helper.UserMessages.forException(e));
+        RegistrationPeriod current = period.getId() == null ? null : requirePeriod(period.getId());
+        if (current != null && !RegistrationPeriodService.canEditPeriod(current)) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Đợt đăng ký đã bắt đầu hoặc đã đóng, chỉ được xem thông tin.");
+            return "redirect:/admin/periods/" + current.getId();
         }
-        return "redirect:/admin/periods";
+        periodService.getValidationErrors(period).forEach((field, message) -> {
+            if (!bindingResult.hasFieldErrors(field)) bindingResult.rejectValue(field, "period.invalid", message);
+        });
+        if (!bindingResult.hasErrors()) {
+            try {
+                UserAccount adminUser = (UserAccount) session.getAttribute("user");
+                if (period.getId() == null && adminUser != null) {
+                    period.setCreatedBy(adminUser);
+                }
+                periodService.save(period);
+                redirectAttributes.addFlashAttribute("successMessage",
+                        "Lưu đợt đăng ký '" + period.getName() + "' thành công!");
+                return "redirect:/admin/periods";
+            } catch (FormValidationException e) {
+                e.getFieldErrors().forEach((field, message) -> bindingResult.rejectValue(field, "period.invalid", message));
+            } catch (Exception e) {
+                bindingResult.reject("period.saveFailed", ute.edu.helper.UserMessages.forException(e));
+            }
+        }
+        if (current != null) {
+            RegistrationPeriod latest = requirePeriod(current.getId());
+            if (!RegistrationPeriodService.canEditPeriod(latest)) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Đợt đăng ký đã bắt đầu hoặc đã đóng, chỉ được xem thông tin.");
+                return "redirect:/admin/periods/" + latest.getId();
+            }
+            preparePeriodEditor(latest, model);
+        }
+        model.addAttribute("period", period);
+        model.addAttribute("periodFormHasErrors", true);
+        return registrationPeriods(model);
     }
 
     @PostMapping("/periods/{id}/delete")
@@ -264,6 +330,8 @@ public class AdminController {
     public String groups(Model model) {
         List<StudentGroup> groups = groupService.getAll();
         model.addAttribute("groups", groups);
+        model.addAttribute("periods", periodService.getAll());
+        model.addAttribute("departments", departmentRepository.findAll());
         return "admin/groups";
     }
 
@@ -288,7 +356,8 @@ public class AdminController {
         Map<Long, List<CouncilService.ReportTimeSlot>> reportTimeSlotsByCouncil = new HashMap<>();
         Map<Long, String> assignedCouncilPeriodsByLecturer = new HashMap<>();
         for (ReviewCouncil council : councils) {
-            if (council.getRegistrationPeriod() != null) {
+            if (council.getRegistrationPeriod() != null
+                    && !council.getId().equals(model.getAttribute("editingCouncilId"))) {
                 String periodId = council.getRegistrationPeriod().getId().toString();
                 for (ReviewCouncilMember member : council.getMembers()) {
                     assignedCouncilPeriodsByLecturer.merge(member.getLecturer().getId(), periodId,
@@ -314,37 +383,129 @@ public class AdminController {
         model.addAttribute("councils", councils);
         model.addAttribute("periods", periodService.getAll());
         model.addAttribute("departments", departmentRepository.findAll());
-        model.addAttribute("lecturers", lectureRepository.findAll(org.springframework.data.domain.Sort.by(
-                org.springframework.data.domain.Sort.Direction.DESC, "user.createdAt", "id")));
+        var councilLecturers = new LinkedHashMap<Long, Lecture>();
+        councilService.getCouncilCandidates().forEach(lecturer -> councilLecturers.put(lecturer.getId(), lecturer));
+        if (model.getAttribute("selectedCouncil") instanceof ReviewCouncil selected)
+            selected.getMembers().forEach(member -> councilLecturers.putIfAbsent(member.getLecturer().getId(), member.getLecturer()));
+        model.addAttribute("lecturers", new ArrayList<>(councilLecturers.values()));
         model.addAttribute("eligibleRegistrationsByCouncil", eligibleRegistrationsByCouncil);
         model.addAttribute("assignmentsByCouncil", assignmentsByCouncil);
         model.addAttribute("reportTimeSlotsByCouncil", reportTimeSlotsByCouncil);
         model.addAttribute("assignedCouncilPeriodsByLecturer", assignedCouncilPeriodsByLecturer);
         model.addAttribute("councilCreationPeriods", periodService.getCouncilCreationPeriods());
+        if (!model.containsAttribute("councilForm")) model.addAttribute("councilForm", new CouncilForm());
         return "admin/councils";
+    }
+
+    @GetMapping("/councils/new")
+    public String newCouncil(Model model) {
+        model.addAttribute("councilFormOpen", true);
+        return councils(model);
+    }
+
+    @GetMapping("/councils/{id}")
+    public String councilDetails(@PathVariable Long id, Model model) {
+        ReviewCouncil council = requireCouncil(id);
+        model.addAttribute("councilForm", CouncilForm.fromCouncil(council));
+        prepareCouncilEditor(council, model);
+        return councils(model);
+    }
+
+    private ReviewCouncil requireCouncil(Long id) {
+        ReviewCouncil council = councilService.findById(id);
+        if (council == null) throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy hội đồng.");
+        return council;
+    }
+
+    private void prepareCouncilEditor(ReviewCouncil council, Model model) {
+        model.addAttribute("selectedCouncil", council);
+        model.addAttribute("editingCouncilId", council.getId());
+        model.addAttribute("councilReadOnly", !councilService.getAssignments(council.getId()).isEmpty());
+        model.addAttribute("councilFormOpen", true);
+        if (!RegistrationPeriodService.canCreateCouncil(council.getRegistrationPeriod()))
+            model.addAttribute("unavailableCouncilPeriod", council.getRegistrationPeriod());
+    }
+
+    @PostMapping("/councils/{id}/update")
+    public String updateCouncil(@PathVariable Long id,
+            @ModelAttribute("councilForm") CouncilForm form, BindingResult bindingResult,
+            Model model, RedirectAttributes redirectAttributes) {
+        ReviewCouncil current = requireCouncil(id);
+        if (!councilService.getAssignments(id).isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Hội đồng đã phân công đề tài, chỉ được xem thông tin.");
+            return "redirect:/admin/councils/" + id;
+        }
+        var changes = new ReviewCouncil();
+        changes.setCode(form.getCode());
+        changes.setName(form.getName());
+        changes.setLocation(form.getLocation());
+        changes.setRegistrationPeriod(form.getPeriodId() == null ? null : periodService.findById(form.getPeriodId()));
+        changes.setDepartment(form.getDepartmentId() == null ? null
+                : departmentRepository.findById(form.getDepartmentId()).orElse(null));
+        councilService.getUpdateValidationErrors(id, changes, form.getChairmanId(), form.getSecretaryId(), form.getMemberIds())
+                .forEach((field, message) -> {
+                    if (!bindingResult.hasFieldErrors(field)) bindingResult.rejectValue(field, "council.invalid", message);
+                });
+        if (!bindingResult.hasErrors()) {
+            try {
+                councilService.updateCouncil(id, changes, form.getChairmanId(), form.getSecretaryId(), form.getMemberIds());
+                redirectAttributes.addFlashAttribute("successMessage", "Cập nhật hội đồng thành công!");
+                return "redirect:/admin/councils";
+            } catch (FormValidationException e) {
+                e.getFieldErrors().forEach((field, message) -> bindingResult.rejectValue(field, "council.invalid", message));
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                bindingResult.rejectValue("code", "council.duplicateCode", "Không thể lưu hội đồng. Vui lòng kiểm tra mã hội đồng có bị trùng hay không.");
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                bindingResult.reject("council.saveFailed", ute.edu.helper.UserMessages.forException(e));
+            }
+        }
+        if (!councilService.getAssignments(id).isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Hội đồng vừa được phân công đề tài, chỉ được xem thông tin.");
+            return "redirect:/admin/councils/" + id;
+        }
+        model.addAttribute("councilFormHasErrors", true);
+        prepareCouncilEditor(current, model);
+        // Giữ đợt người dùng vừa chọn khi dữ liệu không hợp lệ.
+        if (!RegistrationPeriodService.canCreateCouncil(changes.getRegistrationPeriod()))
+            model.addAttribute("unavailableCouncilPeriod", changes.getRegistrationPeriod());
+        return councils(model);
     }
 
     @PostMapping("/councils/save")
     /** Tạo hội đồng và thiết lập thành viên. */
-    public String saveCouncil(@ModelAttribute ReviewCouncil council,
-            @RequestParam Long periodId,
-            @RequestParam Long departmentId,
-            @RequestParam Long chairmanId,
-            @RequestParam Long secretaryId,
-            @RequestParam(required = false) List<Long> memberIds,
+    public String saveCouncil(@ModelAttribute("councilForm") CouncilForm form,
+            BindingResult bindingResult,
+            Model model,
             RedirectAttributes redirectAttributes) {
-        try {
-            council.setRegistrationPeriod(periodService.findById(periodId));
-            council.setDepartment(departmentRepository.findById(departmentId).orElse(null));
-            councilService.createCouncil(council, chairmanId, secretaryId, memberIds);
-            redirectAttributes.addFlashAttribute("successMessage", "Thành lập Hội đồng phản biện thành công!");
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Không thể lưu hội đồng. Mã hội đồng có thể đã tồn tại; vui lòng kiểm tra mã và thông tin đã nhập.");
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Lỗi tạo hội đồng: " + ute.edu.helper.UserMessages.forException(e));
+        var council = new ReviewCouncil();
+        council.setCode(form.getCode());
+        council.setName(form.getName());
+        council.setLocation(form.getLocation());
+        council.setRegistrationPeriod(form.getPeriodId() == null ? null : periodService.findById(form.getPeriodId()));
+        council.setDepartment(form.getDepartmentId() == null ? null
+                : departmentRepository.findById(form.getDepartmentId()).orElse(null));
+        councilService.getCreationValidationErrors(council, form.getChairmanId(), form.getSecretaryId(), form.getMemberIds())
+                .forEach((field, message) -> {
+                    if (!bindingResult.hasFieldErrors(field)) bindingResult.rejectValue(field, "council.invalid", message);
+                });
+        if (!bindingResult.hasErrors()) {
+            try {
+                councilService.createCouncil(council, form.getChairmanId(), form.getSecretaryId(), form.getMemberIds());
+                redirectAttributes.addFlashAttribute("successMessage", "Thành lập Hội đồng phản biện thành công!");
+                return "redirect:/admin/councils";
+            } catch (FormValidationException e) {
+                e.getFieldErrors().forEach((field, message) -> bindingResult.rejectValue(field, "council.invalid", message));
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                bindingResult.rejectValue("code", "council.duplicateCode", "Không thể lưu hội đồng. Vui lòng kiểm tra mã hội đồng có bị trùng hay không.");
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                bindingResult.reject("council.saveFailed", ute.edu.helper.UserMessages.forException(e));
+            }
         }
-        return "redirect:/admin/councils";
+        model.addAttribute("councilFormHasErrors", true);
+        if (!RegistrationPeriodService.canCreateCouncil(council.getRegistrationPeriod()))
+            model.addAttribute("unavailableCouncilPeriod", council.getRegistrationPeriod());
+        return councils(model);
     }
 
     @PostMapping("/councils/{id}/assign-topic")
@@ -402,7 +563,7 @@ public class AdminController {
             RedirectAttributes redirectAttributes) {
         try {
             scoringService.finalizeCouncil(councilId);
-            redirectAttributes.addFlashAttribute("successMessage", "Đã chốt và công bố kết quả đánh giá cho Hội đồng!");
+            redirectAttributes.addFlashAttribute("successMessage", "Đã chốt và công bố điểm trung bình hội đồng!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Lỗi: " + ute.edu.helper.UserMessages.forException(e));
         }
@@ -416,6 +577,8 @@ public class AdminController {
         model.addAttribute("reports", reportService.getAll().stream()
                 .filter(report -> councilService.isEligibleForCouncil(report.getTopicRegistration()))
                 .toList());
+        model.addAttribute("periods", periodService.getAll());
+        model.addAttribute("departments", departmentRepository.findAll());
         return "admin/reports";
     }
 
@@ -470,6 +633,7 @@ public class AdminController {
 
     // 10. User Management
     @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     public String users(Model model) {
         model.addAttribute("users", userRepository.findAll(org.springframework.data.domain.Sort.by(
                 org.springframework.data.domain.Sort.Direction.DESC, "createdAt", "id")));

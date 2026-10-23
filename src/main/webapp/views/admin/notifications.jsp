@@ -79,13 +79,13 @@
                                 <div class="inline-flex items-center gap-1.5 justify-end">
                                     <form method="post" action="${pageContext.request.contextPath}/admin/notifications/${n.id}/toggle" class="inline">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
-                                        <button type="submit" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors" title="Ẩn / Hiện thông báo">
+                                        <button type="submit" class="btn-icon p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors" title="Ẩn / Hiện thông báo">
                                             <i data-lucide="${n.published ? 'eye-off' : 'eye'}" class="w-4 h-4"></i>
                                         </button>
                                     </form>
                                     <form method="post" action="${pageContext.request.contextPath}/admin/notifications/${n.id}/delete" class="inline" onsubmit="return confirmDeleteNotif(event, '${n.title}');">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
-                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa thông báo">
+                                        <button type="submit" class="btn-icon p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa thông báo">
                                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                                         </button>
                                     </form>
@@ -120,7 +120,7 @@
                         <h5 class="text-base font-bold flex items-center gap-2">
                             <i data-lucide="bell-plus" class="w-5 h-5 text-sky-300"></i> Soạn và Đăng Thông Báo Mới
                         </h5>
-                        <button type="button" class="text-white/80 hover:text-white p-1" data-bs-dismiss="modal">
+                        <button type="button" class="btn-icon text-white/80 hover:text-white p-1" data-bs-dismiss="modal">
                             <i data-lucide="x" class="w-5 h-5"></i>
                         </button>
                     </div>

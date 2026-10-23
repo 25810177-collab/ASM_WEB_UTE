@@ -189,6 +189,7 @@ CREATE TABLE reports (
     approved BOOLEAN NOT NULL DEFAULT FALSE,
     approved_at DATETIME NULL,
     review_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    rejection_reason VARCHAR(1000) NULL,
     CONSTRAINT fk_reports_registrations FOREIGN KEY (topic_registration_id) REFERENCES topic_registrations (id) ON DELETE CASCADE,
     CONSTRAINT fk_reports_students FOREIGN KEY (submitted_by) REFERENCES students (id),
     CONSTRAINT ck_reports_review_status CHECK (review_status IN ('PENDING', 'APPROVED', 'REJECTED'))

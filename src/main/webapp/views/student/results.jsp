@@ -106,32 +106,33 @@
                             </div>
 
                             <c:choose>
-                                <c:when test="${not empty avgScore}">
+                                <c:when test="${not empty councilScore}">
                                     <!-- Big Average Score Highlight Card with 3D Depth -->
                                     <div class="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-sky-500/10 border border-emerald-300/80 rounded-3xl p-6 text-center shadow-xs space-y-2 relative overflow-hidden">
                                         <div class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
                                             Điểm Tổng Kết (50% Quá Trình + 50% Hội Đồng)
                                         </div>
                                         <div class="text-5xl font-black text-emerald-600 tracking-tight drop-shadow-xs">
-                                            ${avgScore}
+                                            <c:choose>
+                                                <c:when test="${not empty avgScore}">${avgScore}</c:when>
+                                                <c:otherwise><span class="text-lg">Chưa đủ điểm tổng kết</span></c:otherwise>
+                                            </c:choose>
                                         </div>
                                         <div class="text-xs text-slate-500 font-medium">
                                             Thang điểm chuẩn 10.0
                                         </div>
                                     </div>
 
-                                    <c:if test="${not empty processScore}">
                                         <div class="grid grid-cols-2 gap-3">
                                             <div class="rounded-2xl bg-sky-50/70 border border-sky-200/80 p-4 text-center">
                                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-sky-700">Điểm quá trình</div>
-                                                <div class="text-2xl font-black text-sky-700 mt-1">${processScore} / 10</div>
+                                                <div class="text-2xl font-black text-sky-700 mt-1">${not empty processScore ? processScore : 'Chưa có'}<c:if test="${not empty processScore}"> / 10</c:if></div>
                                             </div>
                                             <div class="rounded-2xl bg-emerald-50/70 border border-emerald-200/80 p-4 text-center">
                                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Điểm hội đồng</div>
-                                                <div class="text-2xl font-black text-emerald-700 mt-1">${scoringService.calculateAverageScore(assignment.id)} / 10</div>
+                                                <div class="text-2xl font-black text-emerald-700 mt-1">${councilScore} / 10</div>
                                             </div>
                                         </div>
-                                    </c:if>
 
                                     <c:if test="${not empty processEvaluations}">
                                         <div class="space-y-2 pt-2">

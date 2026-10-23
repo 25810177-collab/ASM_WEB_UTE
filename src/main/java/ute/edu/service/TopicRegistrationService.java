@@ -89,9 +89,6 @@ public class TopicRegistrationService {
         if (group.getTopic() != null) {
             throw new IllegalStateException("QUY ĐỊNH: Nhóm đã được gán một đề tài chính thức!");
         }
-        if (registrationRepository.existsByGroupIdAndTopicId(group.getId(), topic.getId())) {
-            throw new IllegalStateException("Nhóm đã gửi yêu cầu đăng ký cho đề tài này!");
-        }
         if (group.getMembers().isEmpty() || group.getMembers().size() > Math.min(3, topic.getMaxStudents())) {
             throw new IllegalStateException("Số thành viên vượt giới hạn đề tài (tối đa 3 sinh viên)!");
         }
@@ -101,11 +98,11 @@ public class TopicRegistrationService {
                 throw new IllegalStateException("Tất cả thành viên phải thuộc khoa quản lý đề tài!");
             }
         }
-        // Kiểm tra BIZ-05: Nhóm đang có đơn chờ duyệt
+        // Chỉ đơn đang chờ/đã duyệt chặn đăng ký mới; giữ lịch sử các lần bị từ chối/hủy.
         List<TopicRegistration> existingRegs = registrationRepository.findByGroupIdOrderByCreatedAtDescIdDesc(group.getId());
         for (TopicRegistration reg : existingRegs) {
             if (reg.getStatus() == RegistrationStatus.PENDING || reg.getStatus() == RegistrationStatus.APPROVED) {
-                throw new IllegalStateException("Nhóm đang có đơn chờ duyệt, không thể đăng ký thêm!");
+                throw new IllegalStateException("Nhóm đang có đơn chờ duyệt hoặc đã được duyệt, không thể đăng ký thêm!");
             }
         }
 

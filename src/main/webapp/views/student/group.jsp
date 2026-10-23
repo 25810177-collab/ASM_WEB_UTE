@@ -128,10 +128,11 @@
                                     <div class="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-sky-50/40 border border-slate-200/90 space-y-3.5">
                                         <div class="flex items-center justify-between">
                                             <span class="px-2.5 py-1 rounded-xl font-mono font-bold text-xs bg-sky-50 text-sky-700 border border-sky-200/80 shadow-2xs">${registration.topic.code}</span>
-                                            <span class="status-badge ${registration.status == 'APPROVED' ? 'status-success' : registration.status == 'PENDING' ? 'status-pending' : 'status-danger'} text-[10px]">
+                                            <span class="status-badge ${registration.status == 'APPROVED' ? 'status-success' : registration.status == 'PENDING' ? 'status-pending' : registration.status == 'REJECTED' ? 'status-danger' : 'status-neutral'} text-[10px]">
                                                 <c:choose>
                                                     <c:when test="${registration.status == 'APPROVED'}">ĐÃ CHẤP NHẬN</c:when>
                                                     <c:when test="${registration.status == 'PENDING'}">CHỜ DUYỆT</c:when>
+                                                    <c:when test="${registration.status == 'CANCELLED'}">ĐÃ HỦY</c:when>
                                                     <c:otherwise>TỪ CHỐI</c:otherwise>
                                                 </c:choose>
                                             </span>
@@ -143,6 +144,37 @@
                                                 <div class="text-slate-500">Đồng hướng dẫn: ${registration.topic.coLecturer.user.fullName}</div>
                                             </c:if>
                                         </div>
+                                        <c:if test="${registration.status == 'REJECTED'}">
+                                            <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                                                <strong>Lý do từ chối:</strong>
+                                                <p class="mt-1 whitespace-pre-wrap break-words"><c:out value="${not empty registration.rejectionReason ? registration.rejectionReason : 'Giảng viên chưa cung cấp lý do.'}" /></p>
+                                            </div>
+                                            <c:choose>
+                                                <c:when test="${canRegisterAgain && myGroup.leader.id == student.id}">
+                                                    <form method="post" action="${pageContext.request.contextPath}/student/topics/register" class="space-y-3">
+                                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                                                        <input type="hidden" name="groupId" value="${myGroup.id}">
+                                                        <input type="hidden" name="topicId" value="${registration.topic.id}">
+                                                        <label for="registrationRetryNote" class="block text-xs font-semibold text-slate-700">Ghi chú đăng ký lại</label>
+                                                        <textarea id="registrationRetryNote" name="note" rows="3" maxlength="255"
+                                                            class="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs"
+                                                            placeholder="Bổ sung hoặc chỉnh sửa ghi chú theo góp ý của giảng viên..."><c:out value="${registration.note}" /></textarea>
+                                                        <p class="text-xs text-slate-500">Yêu cầu mới sẽ chuyển về Chờ duyệt. Lần bị từ chối được giữ trong lịch sử.</p>
+                                                        <div class="flex flex-wrap gap-2">
+                                                            <button type="submit" class="btn-ui btn-ui-primary"><i data-lucide="send"></i> Đăng ký lại đề tài này</button>
+                                                            <a href="${pageContext.request.contextPath}/student/topics" class="btn-ui btn-ui-outline">Chọn đề tài khác</a>
+                                                        </div>
+                                                    </form>
+                                                </c:when>
+                                                <c:when test="${canRegisterAgain}">
+                                                    <p class="text-xs text-slate-600">Nhóm trưởng có thể bổ sung ghi chú và đăng ký lại đề tài.</p>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <p class="text-xs text-amber-700">Đề tài hoặc đợt đăng ký hiện không còn nhận đăng ký lại.</p>
+                                                    <a href="${pageContext.request.contextPath}/student/topics" class="btn-ui btn-ui-outline">Tra cứu đề tài</a>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </c:if>
                                     </div>
                                 </c:when>
                                 <c:otherwise>
@@ -223,7 +255,7 @@
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                                                 <input type="hidden" name="groupId" value="${myGroup.id}">
                                                 <input type="hidden" name="studentId" value="${m.student.id}">
-                                                <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Xóa khỏi nhóm">
+                                                <button type="submit" class="btn-icon p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Xóa khỏi nhóm">
                                                     <i data-lucide="user-minus" class="w-4 h-4"></i>
                                                 </button>
                                             </form>
@@ -246,7 +278,7 @@
                                     <h5 id="inviteMemberTitle" class="text-base font-bold flex items-center gap-2 mb-0">
                                         <i data-lucide="user-plus" class="w-5 h-5 text-sky-200"></i> Thêm thành viên vào nhóm
                                     </h5>
-                                    <button type="button" class="text-white/80 hover:text-white p-1 rounded-lg transition-colors" data-bs-dismiss="modal" aria-label="Đóng">
+                                    <button type="button" class="btn-icon text-white/80 hover:text-white p-1 rounded-lg transition-colors" data-bs-dismiss="modal" aria-label="Đóng">
                                         <i data-lucide="x" class="w-5 h-5"></i>
                                     </button>
                                 </div>

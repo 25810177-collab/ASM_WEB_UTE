@@ -60,16 +60,27 @@ public class ReportService {
         report.setApproved(true);
         report.setApprovedAt(LocalDateTime.now());
         report.setReviewStatus(ReportReviewStatus.APPROVED);
+        report.setRejectionReason(null);
         return reportRepository.save(report);
     }
 
     @Transactional
     /** Từ chối một báo cáo. */
-    public Report reject(Long reportId) {
+    public Report reject(Long reportId, String rejectionReason) {
+        if (rejectionReason == null || rejectionReason.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập lý do từ chối báo cáo!");
+        }
+        if (rejectionReason.trim().length() > 1000) {
+            throw new IllegalArgumentException("Lý do từ chối không được vượt quá 1000 ký tự!");
+        }
         Report report = getById(reportId);
+        if (report.isApproved()) {
+            throw new IllegalStateException("Báo cáo đã được duyệt và đang bị khóa");
+        }
         report.setApproved(false);
         report.setApprovedAt(null);
         report.setReviewStatus(ReportReviewStatus.REJECTED);
+        report.setRejectionReason(rejectionReason.trim());
         return reportRepository.save(report);
     }
 

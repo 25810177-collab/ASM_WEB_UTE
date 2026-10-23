@@ -77,7 +77,7 @@
                 <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
                     <div class="flex items-center justify-between">
                         <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            <i data-lucide="folder-archive" class="w-4 h-4 text-sky-600"></i> Báo cáo sinh viên đã nộp
+                            <i data-lucide="folder-archive" class="w-4 h-4 text-sky-600"></i> Báo cáo đã được chấp nhận
                         </h4>
                         <span class="status-badge status-info">${fn:length(reports)} file</span>
                     </div>
@@ -88,7 +88,7 @@
                                 <div class="empty-state-icon-wrap w-10 h-10 mb-2">
                                     <i data-lucide="file-x" class="w-5 h-5 opacity-40"></i>
                                 </div>
-                                <div class="empty-state-desc text-xs mb-0">Nhóm sinh viên chưa nộp bản báo cáo nào</div>
+                                <div class="empty-state-desc text-xs mb-0">Chưa có báo cáo được chấp nhận</div>
                             </div>
                         </c:when>
                         <c:otherwise>
@@ -106,7 +106,7 @@
                                         </div>
                                         <c:if test="${not empty rep.filePath}">
                                         <a href="${pageContext.request.contextPath}/reports/download/${rep.id}" download
-                                           class="btn-ui btn-ui-outline p-2 text-sky-600 shrink-0" 
+                                           class="btn-ui btn-icon btn-ui-outline p-2 text-sky-600 shrink-0"
                                            title="Tải về file">
                                             <i data-lucide="download" class="w-4 h-4"></i>
                                         </a>
@@ -277,7 +277,15 @@
             const data = await response.json();
 
             if (data.success) {
-                EnterpriseUI.toast('success', 'Thành công!', data.message);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công!',
+                    text: data.message,
+                    position: 'center',
+                    confirmButtonText: 'Đóng',
+                    confirmButtonColor: '#006da8',
+                    customClass: { popup: 'rounded-3xl shadow-xl' }
+                });
 
                 const disp = document.getElementById('currentScoreDisplay');
                 if (disp) {

@@ -35,6 +35,7 @@
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/custom-theme.css?v=5.2.0">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/buttons.css?v=1.0.1">
     <style>
         .profile-page { min-height: 100dvh; padding: 16px; }
         .profile-card { max-width: 840px; margin: auto; border-radius: 20px; }
@@ -177,7 +178,7 @@
 
             <div class="profile-actions border-t border-slate-100">
                 <button type="submit"
-                    class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm shadow-md shadow-brand-600/20 hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+                    class="btn-ui w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm shadow-md shadow-brand-600/20 hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     <span>${googleRegistration ? 'Lưu hồ sơ và Tạo tài khoản' : 'Lưu thông tin và Truy cập hệ thống'}</span>
                 </button>

@@ -5,6 +5,8 @@
             <c:set scope="request" var="pageHeading" value="Hội đồng phản biện và chấm điểm đề tài" />
             <c:set scope="request" var="pageSubheading" value="Danh sách hội đồng tham gia và các đề tài được phân công chấm điểm" />
             <c:set scope="request" var="activeMenu" value="councils" />
+            <c:set scope="request" var="periodFilterTarget" value="#lecturerCouncilList" />
+            <c:set scope="request" var="periodSearchPlaceholder" value="Tìm mã, tên hội đồng, đề tài, nhóm sinh viên..." />
 
             <jsp:include page="../common/header.jsp" />
             <jsp:include page="../common/sidebar.jsp" />
@@ -30,6 +32,7 @@
                         </div>
                     </div>
 
+                    <jsp:include page="../common/period-filter.jsp" />
                     <c:choose>
                         <c:when test="${empty myCouncilMembers}">
                             <div class="empty-state py-16 bg-white rounded-3xl border border-slate-200 shadow-sm">
@@ -44,9 +47,9 @@
                             </div>
                         </c:when>
                         <c:otherwise>
-                            <div class="space-y-6">
+                            <div class="space-y-6" id="lecturerCouncilList">
                                 <c:forEach var="mc" items="${myCouncilMembers}">
-                                    <div class="table-shell">
+                                    <div class="table-shell" data-period-item data-period-id="${mc.council.registrationPeriod.id}">
                                         <!-- Council Header -->
                                         <div
                                             class="bg-white p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">

@@ -2,7 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <c:set scope="request" var="pageTitle" value="Điểm số và kết quả phản biện" />
-<c:set scope="request" var="pageHeading" value="Tổng hợp điểm số và công bố kết quả" />
+<c:set scope="request" var="pageHeading" value="Tổng hợp và công bố điểm hội đồng" />
 <c:set scope="request" var="pageSubheading" value="Tính điểm trung bình cộng từ các thành viên hội đồng và chốt công bố kết quả chính thức" />
 <c:set scope="request" var="activeMenu" value="results" />
 <c:set var="suppressFlashMessage" value="true" />
@@ -40,7 +40,7 @@
                         <form method="post" action="${pageContext.request.contextPath}/admin/results/${c.id}/finalize" onsubmit="return confirmFinalize(event, '${c.name}');">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                             <button type="submit" class="btn-ui btn-ui-primary text-xs py-2 px-3.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${c.status == 'COMPLETED' || empty assignments ? 'disabled' : ''}>
-                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> ${c.status == 'COMPLETED' ? 'Đã công bố điểm' : 'Chốt và Công Bố Điểm'}
+                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> ${c.status == 'COMPLETED' ? 'Đã công bố điểm hội đồng' : 'Chốt và công bố điểm hội đồng'}
                             </button>
                         </form>
                     </div>
@@ -63,14 +63,14 @@
                                                 <th class="w-[24%]">Đề tài Báo cáo</th>
                                                 <th class="w-[20%]">Nhóm Thực hiện</th>
                                                 <th class="w-[28%]">Điểm Thành viên Hội đồng</th>
-                                                <th class="w-[14%] text-center whitespace-nowrap">Điểm Tổng Kết (50/50)</th>
+                                                <th class="w-[14%] text-center whitespace-nowrap">Điểm TB Hội đồng</th>
                                                 <th class="w-[14%] text-center whitespace-nowrap">Trạng thái</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-slate-100 text-xs">
                                             <c:forEach var="assign" items="${assignments}">
                                                 <c:set var="scores" value="${scoringService.getScoresForAssignment(assign.id)}" />
-                                                <c:set var="avg" value="${scoringService.calculateFinalScore(assign.id)}" />
+                                                <c:set var="avg" value="${scoringService.calculateAverageScore(assign.id)}" />
                                                 <tr class="hover:bg-slate-50/60 transition-colors">
                                                     <td class="align-top">
                                                         <span class="code-tag">${assign.topicRegistration.topic.code}</span>
@@ -79,7 +79,9 @@
                                                     </td>
                                                     <td class="align-top">
                                                         <div class="font-bold text-slate-900"><c:out value="${assign.topicRegistration.group.name}" /></div>
-                                                        <div class="text-[11px] text-slate-500 mt-0.5">Nhóm trưởng: ${assign.topicRegistration.group.leader.user.fullName}</div>
+                                                        <div class="text-[11px] text-slate-500 mt-0.5">Nhóm trưởng: <c:out value="${assign.topicRegistration.group.leader.user.fullName}" /></div>
+                                                        <div class="text-[11px] text-slate-500 mt-0.5">MSSV: <c:out value="${assign.topicRegistration.group.leader.studentCode}" /></div>
+                                                        <div class="text-[11px] text-slate-500 mt-0.5">Lớp: <c:out value="${assign.topicRegistration.group.leader.className}" /></div>
                                                     </td>
                                                     <td class="align-top">
                                                         <div class="space-y-1.5">
@@ -98,9 +100,6 @@
                                                         <c:choose>
                                                             <c:when test="${avg != null}">
                                                                 <div class="text-2xl font-black ${avg >= 5.0 ? 'text-emerald-600' : 'text-rose-600'}">${avg}</div>
-                                                                <span class="status-badge ${avg >= 8.5 ? 'status-approved' : avg >= 7.0 ? 'status-info' : avg >= 5.0 ? 'status-pending' : 'status-danger'} mt-1">
-                                                                    ${avg >= 8.5 ? 'Giỏi / Xuất sắc' : avg >= 7.0 ? 'Khá' : avg >= 5.0 ? 'Đạt' : 'Không đạt'}
-                                                                </span>
                                                             </c:when>
                                                             <c:otherwise>
                                                                 <span class="status-badge status-neutral">Chưa đủ điểm</span>
@@ -134,7 +133,7 @@
         const isSuccess = flash.dataset.messageType === 'success';
         Swal.fire({
             icon: isSuccess ? 'success' : 'error',
-            title: isSuccess ? 'Công bố điểm thành công' : 'Không thể công bố điểm',
+            title: isSuccess ? 'Công bố điểm hội đồng thành công' : 'Không thể công bố điểm hội đồng',
             text: flash.textContent.trim(),
             confirmButtonText: 'Đóng',
             confirmButtonColor: isSuccess ? '#059669' : '#dc2626'
@@ -145,8 +144,8 @@
         event.preventDefault();
         const form = event.target;
         Swal.fire({
-            title: 'Chốt và Công bố điểm?',
-            text: 'Bạn có chắc chắn muốn chốt điểm và công bố kết quả cho ' + councilName + '?',
+            title: 'Chốt và công bố điểm hội đồng?',
+            text: 'Bạn có chắc chắn muốn chốt điểm trung bình hội đồng cho ' + councilName + '?',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#059669',

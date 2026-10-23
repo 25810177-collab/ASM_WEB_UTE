@@ -5,6 +5,8 @@
 <c:set scope="request" var="pageHeading" value="Duyệt đăng ký nhóm sinh viên" />
 <c:set scope="request" var="pageSubheading" value="Nhóm SV đăng ký đề tài của bạn — GVHD chấp nhận hoặc từ chối" />
 <c:set scope="request" var="activeMenu" value="groups" />
+<c:set scope="request" var="periodFilterTarget" value="#lecturerGroupsTable" />
+<c:set scope="request" var="periodSearchPlaceholder" value="Tìm nhóm, mã đề tài, thành viên, MSSV..." />
 
 <jsp:include page="../common/header.jsp" />
 <jsp:include page="../common/sidebar.jsp" />
@@ -13,6 +15,7 @@
     <jsp:include page="../common/navbar.jsp" />
 
     <main class="app-content workspace-page space-y-6">
+        <jsp:include page="../common/period-filter.jsp" />
         <div class="table-shell">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-white">
                 <div class="flex items-center gap-2.5">
@@ -49,7 +52,8 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 text-xs">
                                 <c:forEach var="reg" items="${registrations}">
-                                    <tr class="hover:bg-slate-50/80 transition-colors">
+                                    <tr class="hover:bg-slate-50/80 transition-colors" data-period-item
+                                        data-period-id="${reg.group.registrationPeriod != null ? reg.group.registrationPeriod.id : reg.topic.registrationPeriod.id}">
                                         <td class="align-top">
                                             <div class="font-extrabold text-slate-900 leading-snug"><c:out value="${reg.group.name}" /></div>
                                             <div class="text-[10px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
@@ -97,8 +101,8 @@
                                                 <c:out value="${reg.note != null ? reg.note : 'Không có'}" />
                                             </div>
                                             <c:if test="${not empty reg.rejectionReason}">
-                                                <div class="mt-1.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-[10px] leading-relaxed">
-                                                    <strong>Lý do từ chối:</strong> ${reg.rejectionReason}
+                                                <div class="mt-1.5 p-2 rounded-xl text-rose-700 text-[10px] leading-relaxed">
+                                                    <strong>Lý do từ chối:</strong> <c:out value="${reg.rejectionReason}" />
                                                 </div>
                                             </c:if>
                                         </td>
@@ -121,8 +125,12 @@
                                         </td>
 
                                         <td class="align-middle text-center whitespace-nowrap">
-                                            <c:choose>
-                                                <c:when test="${reg.status == 'PENDING'}">
+                                            <button type="button" class="btn-ui btn-ui-outline w-full mb-2"
+                                                data-registration-view="${reg.id}" data-bs-toggle="modal" data-bs-target="#registrationDetailModal"
+                                                aria-label="Xem thông tin nhóm và đăng ký">
+                                                <i data-lucide="eye"></i> Xem
+                                            </button>
+                                            <c:if test="${reg.status == 'PENDING'}">
                                                     <div class="flex flex-col gap-1.5 items-center">
                                                         <form method="post" action="${pageContext.request.contextPath}/lecturer/groups/${reg.id}/status" class="w-full">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
@@ -136,11 +144,7 @@
                                                             <i data-lucide="x" class="w-3.5 h-3.5"></i> Từ chối
                                                         </button>
                                                     </div>
-                                                </c:when>
-                                                <c:otherwise>
-                                                    <span class="text-[10px] text-slate-400 font-medium italic block text-center">Đã xử lý</span>
-                                                </c:otherwise>
-                                            </c:choose>
+                                            </c:if>
                                         </td>
                                     </tr>
                                 </c:forEach>
@@ -152,9 +156,88 @@
         </div>
     </main>
 
+    <c:forEach var="reg" items="${registrations}">
+        <template id="registrationDetail-${reg.id}">
+            <div class="space-y-5 text-sm">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><dt class="text-xs font-bold text-slate-500">Tên nhóm</dt><dd class="mt-1 font-semibold break-words"><c:out value="${reg.group.name}" /></dd></div>
+                    <div><dt class="text-xs font-bold text-slate-500">Đăng ký #${reg.id}</dt><dd class="mt-1"><c:out value="${enumLabel.label(reg.status)}" /></dd></div>
+                    <div class="sm:col-span-2"><dt class="text-xs font-bold text-slate-500">Đợt đăng ký</dt><dd class="mt-1"><c:out value="${reg.group.registrationPeriod != null ? reg.group.registrationPeriod.name : (reg.topic.registrationPeriod != null ? reg.topic.registrationPeriod.name : 'Chung')}" /></dd></div>
+                    <div><dt class="text-xs font-bold text-slate-500">Thời gian gửi</dt><dd class="mt-1">${dateDisplay.format(reg.createdAt)}</dd></div>
+                    <div><dt class="text-xs font-bold text-slate-500">Người xử lý</dt><dd class="mt-1"><c:out value="${reg.approvedBy != null ? reg.approvedBy.fullName : 'Chưa xử lý'}" /></dd></div>
+                </dl>
+
+                <section class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                    <h6 class="text-sm font-bold text-slate-900">Đề tài đăng ký</h6>
+                    <div class="text-xs font-mono font-semibold text-sky-700"><c:out value="${reg.topic.code}" /></div>
+                    <p class="font-semibold break-words"><c:out value="${reg.topic.title}" /></p>
+                    <p class="text-xs text-slate-600">Khoa: <c:out value="${reg.topic.department.name}" /></p>
+                    <p class="text-xs text-slate-600">GVHD chính: <c:out value="${reg.topic.lecturer != null ? reg.topic.lecturer.user.fullName : 'Chưa phân công'}" /></p>
+                    <c:if test="${not empty reg.topic.coLecturer}">
+                        <p class="text-xs text-slate-600">Đồng hướng dẫn: <c:out value="${reg.topic.coLecturer.user.fullName}" /></p>
+                    </c:if>
+                    <c:if test="${not empty reg.topic.description}">
+                        <p class="text-xs text-slate-600 whitespace-pre-wrap break-words"><c:out value="${reg.topic.description}" /></p>
+                    </c:if>
+                </section>
+
+                <section>
+                    <h6 class="text-sm font-bold text-slate-900 mb-3">Thành viên hiện tại (${fn:length(reg.group.members)} / 3)</h6>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <c:forEach var="member" items="${reg.group.members}">
+                            <div class="rounded-xl border border-slate-200 p-3 space-y-1 text-xs">
+                                <div class="font-semibold text-slate-900 break-words">
+                                    <c:out value="${member.student.user.fullName}" />
+                                    <c:if test="${member.leader}"><span class="font-semibold text-amber-700 whitespace-nowrap">(Nhóm trưởng)</span></c:if>
+                                </div>
+                                <div>MSSV: <c:out value="${member.student.studentCode}" /></div>
+                                <div>Lớp: <c:out value="${member.student.className}" /></div>
+                                <div>Khoa: <c:out value="${member.student.department.name}" /></div>
+                                <div class="break-all">Email: <c:out value="${member.student.user.email}" /></div>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </section>
+
+                <section>
+                    <h6 class="text-xs font-bold text-slate-500 mb-2">Ghi chú đăng ký</h6>
+                    <p class="text-sm whitespace-pre-wrap break-words"><c:out value="${not empty reg.note ? reg.note : 'Không có ghi chú'}" /></p>
+                </section>
+                <c:if test="${reg.status == 'REJECTED'}">
+                    <section class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-800">
+                        <h6 class="text-xs font-bold mb-2">Lý do từ chối</h6>
+                        <p class="text-sm whitespace-pre-wrap break-words"><c:out value="${not empty reg.rejectionReason ? reg.rejectionReason : 'Chưa cung cấp lý do'}" /></p>
+                    </section>
+                </c:if>
+            </div>
+        </template>
+    </c:forEach>
+
+    <div class="modal fade" id="registrationDetailModal" tabindex="-1" aria-labelledby="registrationDetailTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-2xl">
+                <div class="topic-modal-header modal-header-hero flex items-center justify-between">
+                    <h5 id="registrationDetailTitle" class="font-bold">Thông tin nhóm và đăng ký đề tài</h5>
+                    <button type="button" class="btn-icon text-white" data-bs-dismiss="modal" aria-label="Đóng"><i data-lucide="x"></i></button>
+                </div>
+                <div id="registrationDetailContent" class="modal-body topic-modal-body"></div>
+                <div class="topic-modal-footer bg-slate-50 flex justify-end border-t border-slate-100">
+                    <button type="button" class="btn-ui btn-ui-outline" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <jsp:include page="../common/footer.jsp" />
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('registrationDetailModal').addEventListener('show.bs.modal', function (event) {
+            const template = document.getElementById('registrationDetail-' + event.relatedTarget?.dataset.registrationView);
+            if (template) document.getElementById('registrationDetailContent').replaceChildren(template.content.cloneNode(true));
+        });
+    });
+
     function rejectGroupSweetAlert(regId, groupName) {
         Swal.fire({
             title: 'Từ chối nhóm đăng ký?',

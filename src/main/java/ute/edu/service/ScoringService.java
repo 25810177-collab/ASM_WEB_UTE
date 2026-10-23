@@ -182,7 +182,7 @@ public class ScoringService {
     }
 
     @Transactional
-    /** Chốt hội đồng khi tất cả thành viên đã nhập điểm. */
+    /** Chốt điểm hội đồng khi đủ điểm thành viên; điểm tổng kết được tính riêng cho sinh viên. */
     public void finalizeCouncil(Long councilId) {
         ReviewCouncil council = councilRepository.findForUpdate(councilId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Hội đồng"));
@@ -210,9 +210,9 @@ public class ScoringService {
             assignment.setStatus(AssignmentStatus.EVALUATED);
             assignmentRepository.save(assignment);
 
-            Double finalScore = calculateFinalScore(assignment.getId());
-            if (finalScore == null || !Double.isFinite(finalScore)) {
-                throw new IllegalStateException("Chưa đủ điểm quá trình và điểm hội đồng hợp lệ!");
+            Double councilScore = calculateAverageScore(assignment.getId());
+            if (councilScore == null || !Double.isFinite(councilScore)) {
+                throw new IllegalStateException("Chưa đủ điểm hội đồng hợp lệ!");
             }
             assignment.getTopicRegistration().getTopic().setStatus(ute.edu.enums.TopicStatus.COMPLETED);
             List<String> emails = new java.util.ArrayList<>();
@@ -221,10 +221,10 @@ public class ScoringService {
                     emails.add(member.getStudent().getUser().getEmail());
                 }
             }
-            if (!emails.isEmpty() && finalScore != null) {
-                String subject = "Kết quả bảo vệ đề tài: " + assignment.getTopicRegistration().getTopic().getTitle();
-                String body = "Chào nhóm,<br><br>Điểm tổng kết bảo vệ đề tài của nhóm bạn là: <b>" + finalScore
-                        + "</b>.<br>Chúc mừng các bạn đã hoàn thành!<br><br>Khoa CNTT.";
+            if (!emails.isEmpty()) {
+                String subject = "Điểm hội đồng đề tài: " + assignment.getTopicRegistration().getTopic().getTitle();
+                String body = "Chào nhóm,<br><br>Điểm trung bình hội đồng của nhóm bạn là: <b>" + councilScore
+                        + "</b>.<br>Vui lòng xem điểm tổng kết tại trang Lịch và Điểm số của sinh viên.<br><br>Khoa CNTT.";
                 String[] recipients = emails.toArray(new String[0]);
                 if (org.springframework.transaction.support.TransactionSynchronizationManager
                         .isSynchronizationActive()) {

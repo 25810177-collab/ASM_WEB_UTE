@@ -256,7 +256,7 @@
                                             <div class="text-slate-600 space-y-1.5">
                                                 <div class="flex items-center gap-1.5 text-amber-800 font-bold">
                                                     <i data-lucide="crown" class="w-4 h-4 text-amber-500"></i>
-                                                    <span>Trưởng nhóm: ${myGroup.leader.user.fullName}
+                                                    <span>Nhóm trưởng: ${myGroup.leader.user.fullName}
                                                         (${myGroup.leader.studentCode})</span>
                                                 </div>
                                                 <div class="flex items-center gap-1.5 text-slate-500 font-medium">
@@ -374,6 +374,7 @@
                                                 <div><strong>Hội đồng:</strong> <c:out value="${myAssignment.council.name}" /></div>
                                                 <div><strong>Ngày báo cáo:</strong> ${dateDisplay.format(myAssignment.council.councilDate)}
                                                 </div>
+                                                <div><strong>Giờ báo cáo:</strong> ${myAssignment.reportTimeLabel}</div>
                                                 <div><strong>Phòng:</strong> ${myAssignment.council.location}</div>
                                             </div>
                                         </div>

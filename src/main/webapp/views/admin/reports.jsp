@@ -13,7 +13,30 @@
     <jsp:include page="../common/navbar.jsp" />
 
     <main class="app-content workspace-page admin-page space-y-6">
-        <!-- Toolbar và Search -->
+        <!-- Bộ lọc báo cáo -->
+        <div class="admin-filter-bar bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="search" id="reportSearchInput" oninput="filterReportsTable()"
+                       aria-label="Tìm báo cáo" placeholder="Tìm file, đề tài, nhóm, người nộp..."
+                       class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
+            </div>
+            <select id="reportPeriodFilter" onchange="filterReportsTable()" aria-label="Lọc theo đợt đăng ký"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
+                <option value="">-- Tất cả đợt đăng ký --</option>
+                <c:forEach var="p" items="${periods}">
+                    <option value="${p.id}"><c:out value="${p.name}" /></option>
+                </c:forEach>
+            </select>
+            <select id="reportDepartmentFilter" onchange="filterReportsTable()" aria-label="Lọc theo khoa"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
+                <option value="">-- Tất cả khoa --</option>
+                <c:forEach var="d" items="${departments}">
+                    <option value="${d.id}"><c:out value="${d.name}" /></option>
+                </c:forEach>
+            </select>
+        </div>
+
         <div class="table-shell admin-data-surface">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
                 <div class="flex items-center gap-3">
@@ -22,15 +45,10 @@
                     </div>
                     <div>
                         <h3 class="text-base font-bold text-slate-900 leading-tight">
-                            Hồ sơ báo cáo tiến độ &bull; ${fn:length(reports)} tệp tin
+                            Hồ sơ báo cáo tiến độ &bull; <span id="reportCount" aria-live="polite">${fn:length(reports)}</span> tệp tin
                         </h3>
                         <p class="text-xs text-slate-500 mt-0.5">Tải về hoặc đối soát file nộp của các nhóm sinh viên</p>
                     </div>
-                </div>
-                <div class="relative w-full sm:w-80">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                    <input type="text" id="reportSearchInput" onkeyup="filterReportsTable()" placeholder="Tìm file, đề tài, nhóm, người nộp..."
-                           class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none transition-all">
                 </div>
             </div>
 
@@ -58,7 +76,9 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 text-xs">
                                 <c:forEach var="r" items="${reports}">
-                                    <tr class="hover:bg-slate-50/80 transition-colors report-row">
+                                    <tr class="hover:bg-slate-50/80 transition-colors report-row"
+                                        data-period-id="${r.topicRegistration.topic.registrationPeriod.id}"
+                                        data-department-id="${r.topicRegistration.topic.department.id}">
                                         <td class="align-top">
                                             <span class="code-tag">${r.topicRegistration.topic.code}</span>
                                             <div class="font-bold text-slate-900 mt-1 leading-snug line-clamp-2" title="${r.topicRegistration.topic.title}">
@@ -110,6 +130,13 @@
                                         </td>
                                     </tr>
                                 </c:forEach>
+                                <tr id="reportsNoMatches" class="table-empty-row" style="display: none;">
+                                    <td colspan="6">
+                                        <div class="empty-state py-8">
+                                            <div class="empty-state-desc text-xs mb-0">Không có báo cáo phù hợp với bộ lọc đã chọn.</div>
+                                        </div>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -124,9 +151,23 @@
     function filterReportsTable() {
         const input = document.getElementById('reportSearchInput');
         if (!input) return;
-        const q = input.value.toLowerCase();
+        const q = input.value.trim().toLowerCase();
+        const periodId = document.getElementById('reportPeriodFilter').value;
+        const departmentId = document.getElementById('reportDepartmentFilter').value;
+        let count = 0;
         document.querySelectorAll('.report-row').forEach(row => {
-            row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+            const matches = row.textContent.toLowerCase().includes(q)
+                && (!periodId || row.dataset.periodId === periodId)
+                && (!departmentId || row.dataset.departmentId === departmentId);
+            row.dataset.searchHidden = matches ? 'false' : 'true';
+            row.style.display = matches ? '' : 'none';
+            if (matches) count++;
         });
+        document.getElementById('reportCount').textContent = count;
+        const noMatches = document.getElementById('reportsNoMatches');
+        if (noMatches) noMatches.style.display = count === 0 ? '' : 'none';
+        const table = document.getElementById('reportsTable');
+        if (table && table._renderPagination) table._renderPagination();
     }
+    document.addEventListener('DOMContentLoaded', filterReportsTable);
 </script>

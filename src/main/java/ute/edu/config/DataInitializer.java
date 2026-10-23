@@ -97,6 +97,7 @@ public class DataInitializer implements InitializingBean {
                 }
                 migrateRegistrationTypes();
                 migrateCouncilReportTimes();
+                migrateReportRejectionReason();
                 return;
             }
             log.warn("Importing demo SQL into empty database (or explicit app.seed.every-run=true).");
@@ -108,9 +109,19 @@ public class DataInitializer implements InitializingBean {
             populator.execute(dataSource);
             migrateRegistrationTypes();
             migrateCouncilReportTimes();
+            migrateReportRejectionReason();
             log.info("Import OK. Demo passwords: admin123 (admin/dean/department head), 123456 (lecturer/student).");
         } catch (Exception e) {
             throw new IllegalStateException("Khởi tạo database thất bại. Kiểm tra " + SEED_FILE + ": " + e.getMessage(), e);
+        }
+    }
+
+    /** Bổ sung lý do từ chối cho database cũ, kể cả khi DDL_AUTO=none. */
+    private void migrateReportRejectionReason() {
+        var columns = jdbcTemplate.queryForList("SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+                + "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='reports'", String.class);
+        if (!columns.contains("rejection_reason")) {
+            jdbcTemplate.execute("ALTER TABLE reports ADD COLUMN rejection_reason VARCHAR(1000) NULL");
         }
     }
 

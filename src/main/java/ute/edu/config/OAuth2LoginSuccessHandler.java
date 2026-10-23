@@ -21,11 +21,17 @@ import java.io.IOException;
 @Component
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
+    // Đối chiếu email Google với tài khoản và vai trò do hệ thống quản lý.
     private final UserAccountRepository userAccountRepository;
-    private final AuthTokenService authTokenService;
-    private final StudentRepository studentRepository;
-    private final LectureRepository lectureRepository;
 
+    // Tạo token đăng nhập riêng của ứng dụng, độc lập với access token của Google.
+    private final AuthTokenService authTokenService;
+
+    // Kiểm tra và lấy hồ sơ sinh viên liên kết với UserAccount.
+    private final StudentRepository studentRepository;
+
+    // Kiểm tra và lấy hồ sơ giảng viên, bao gồm các chức danh quản lý giảng viên.
+    private final LectureRepository lectureRepository;
     public OAuth2LoginSuccessHandler(UserAccountRepository userAccountRepository,
             AuthTokenService authTokenService,
             StudentRepository studentRepository,
@@ -35,10 +41,10 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         this.studentRepository = studentRepository;
         this.lectureRepository = lectureRepository;
     }
-
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
+       
         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
         String email = oauthUser.getAttribute("email");
         if (email != null) email = email.trim().toLowerCase(java.util.Locale.ROOT);
@@ -53,10 +59,15 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             return;
         }
 
+       
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(email);
+
         if (user == null && email.matches("[0-9]+@(student\\.)?hcmute\\.edu\\.vn")) {
+            // Tạo session nếu chưa có, đổi mã phiên nhưng giữ các thuộc tính session.
             HttpSession pending = request.getSession(true);
             request.changeSessionId();
+
+            // Xóa thông tin người dùng cũ trong session trước khi chuẩn bị hồ sơ mới.
             pending.removeAttribute("user");
             pending.removeAttribute("userRole");
             pending.removeAttribute("studentProfile");
@@ -64,15 +75,19 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             pending.setAttribute("googleRegistrationEmail", email);
             pending.setAttribute("googleRegistrationName", oauthUser.getAttribute("name"));
             pending.setAttribute("googleRegistrationToken", java.util.UUID.randomUUID().toString());
+           
             SecurityContextHolder.clearContext();
             pending.removeAttribute("SPRING_SECURITY_CONTEXT");
+          
             response.sendRedirect(request.getContextPath() + "/google/complete-profile");
             return;
         }
+       
         if (user == null || !user.isEnabled()) {
             reject(request, response, user == null ? "account_not_found" : "account_disabled");
             return;
         }
+       
         if ((user.getRole() == UserRole.STUDENT && studentRepository.findByUserId(user.getId()) == null)
                 || (user.getRole() != UserRole.STUDENT && user.getRole() != UserRole.ADMIN
                 && lectureRepository.findByUserId(user.getId()) == null)) {
@@ -80,15 +95,17 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             return;
         }
 
+        
         HttpSession session = request.getSession(true);
         request.changeSessionId();
 
-        // Setup session
+      
         session.removeAttribute("studentProfile");
         session.removeAttribute("lecturerProfile");
         session.removeAttribute("googleRegistrationEmail");
         session.removeAttribute("googleRegistrationName");
         session.removeAttribute("googleRegistrationToken");
+       
         session.setAttribute("user", user);
         session.setAttribute("userRole", user.getRole());
         if (user.getRole() == UserRole.STUDENT) {
@@ -97,17 +114,22 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 || user.getRole() == UserRole.DEPARTMENT_HEAD) {
             session.setAttribute("lecturerProfile", lectureRepository.findByUserId(user.getId()));
         }
-
-        // Set token cookie
+      
         String token = authTokenService.issue(user);
+
+        // Chỉ thêm Secure khi request được nhận qua HTTPS.
         String secure = request.isSecure() ? "; Secure" : "";
+
+      
         String contextPath = request.getContextPath();
         String path = (contextPath == null || contextPath.isEmpty()) ? "/" : contextPath;
+
+       
         response.addHeader("Set-Cookie", AuthTokenService.COOKIE_NAME + "=" + token
                 + "; Max-Age=" + authTokenService.getTokenTtlSeconds()
                 + "; Path=" + path + "; HttpOnly; SameSite=Lax" + secure);
 
-        // Redirect based on role
+      
         if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.DEAN
                 || user.getRole() == UserRole.DEPARTMENT_HEAD) {
             response.sendRedirect(request.getContextPath() + "/admin/dashboard");
@@ -117,6 +139,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             response.sendRedirect(request.getContextPath() + "/student/dashboard");
         }
     }
+
     private void reject(HttpServletRequest request, HttpServletResponse response, String reason) throws IOException {
         SecurityContextHolder.clearContext();
         if (request.getSession(false) != null) request.getSession(false).invalidate();

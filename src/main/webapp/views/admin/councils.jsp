@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
     <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
         <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+        <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
             <c:set scope="request" var="pageTitle" value="Quản lý hội đồng phản biện" />
             <c:set scope="request" var="pageHeading" value="Quản lý hội đồng phản biện và phân công" />
             <c:set scope="request" var="pageSubheading"
@@ -37,10 +38,19 @@
                                 </p>
                             </div>
                         </div>
-                        <button class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm" data-bs-toggle="modal"
-                            data-bs-target="#createCouncilModal" ${empty councilCreationPeriods ? 'disabled' : ''}>
-                            <i data-lucide="users" class="w-4 h-4"></i> Thành lập hội đồng mới
-                        </button>
+                        <c:choose>
+                            <c:when test="${not empty editingCouncilId and not empty councilCreationPeriods}">
+                                <a href="${pageContext.request.contextPath}/admin/councils/new" class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm">
+                                    <i data-lucide="users" class="w-4 h-4"></i> Thành lập hội đồng mới
+                                </a>
+                            </c:when>
+                            <c:otherwise>
+                                <button class="btn-ui btn-ui-primary text-xs py-2.5 px-4 shadow-sm" data-bs-toggle="modal"
+                                    data-bs-target="#createCouncilModal" ${empty councilCreationPeriods ? 'disabled' : ''}>
+                                    <i data-lucide="users" class="w-4 h-4"></i> Thành lập hội đồng mới
+                                </button>
+                            </c:otherwise>
+                        </c:choose>
                     </div>
 
                     <!-- Filter Bar -->
@@ -190,16 +200,24 @@
                                         data-bs-toggle="modal" data-bs-target="#assignTopicModal_${c.id}">
                                         <i data-lucide="link" class="w-3.5 h-3.5 text-sky-600"></i> Phân công Đề tài
                                     </button>
+                                    <div class="flex items-center gap-1">
+                                        <a href="${pageContext.request.contextPath}/admin/councils/${c.id}"
+                                            class="btn-icon p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors"
+                                            title="${empty assignmentsByCouncil[c.id] ? 'Xem / Chỉnh sửa hội đồng' : 'Xem hội đồng'}"
+                                            aria-label="${empty assignmentsByCouncil[c.id] ? 'Xem / Chỉnh sửa hội đồng' : 'Xem hội đồng'}">
+                                            <i data-lucide="${empty assignmentsByCouncil[c.id] ? 'square-pen' : 'eye'}" class="w-4 h-4"></i>
+                                        </a>
                                     <form method="post"
                                         action="${pageContext.request.contextPath}/admin/councils/${c.id}/delete"
                                         onsubmit="return confirmDeleteCouncil(event, '${c.name}');">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
                                         <button type="submit"
-                                            class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                                            class="btn-icon p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                                             title="Xóa hội đồng">
                                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                                         </button>
                                     </form>
+                                    </div>
                                 </div>
                             </div>
 
@@ -216,7 +234,7 @@
                                                     <i data-lucide="link" class="w-4 h-4 text-sky-300"></i> Phân công Đề
                                                     tài vào ${c.code}
                                                 </h5>
-                                                <button type="button" class="text-white/80 hover:text-white p-1"
+                                                <button type="button" class="btn-icon text-white/80 hover:text-white p-1"
                                                     data-bs-dismiss="modal">
                                                     <i data-lucide="x" class="w-4 h-4"></i>
                                                 </button>
@@ -300,26 +318,41 @@
                     <p class="text-sm text-amber-700">Không có đợt đang mở và còn hạn báo cáo hội đồng để thành lập hội đồng mới.</p>
                 </c:if>
                 <!-- Modal Tạo Hội Đồng Mới (3-5 GV, 1 Chủ tịch, 1 Thư ký) -->
-                <div class="modal fade" id="createCouncilModal" tabindex="-1">
+                <div class="modal fade" id="createCouncilModal" tabindex="-1"
+                    data-reopen="${councilFormHasErrors or councilFormOpen}"
+                    data-restore="${councilFormHasErrors or not empty editingCouncilId}"
+                    data-readonly="${councilReadOnly}">
                     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                         <div
                             class="modal-content rounded-3xl border-0 shadow-2xl overflow-hidden">
-                            <form method="post" action="${pageContext.request.contextPath}/admin/councils/save"
-                                class="managed-modal-form">
-                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
+                            <c:set var="councilFormAction" value="/admin/councils/save" />
+                            <c:if test="${not empty editingCouncilId}">
+                                <c:set var="councilFormAction" value="/admin/councils/${editingCouncilId}/update" />
+                            </c:if>
+                            <form:form modelAttribute="councilForm" id="createCouncilForm" method="post" action="${pageContext.request.contextPath}${councilFormAction}"
+                                cssClass="managed-modal-form" novalidate="novalidate">
                                 <div
                                     class="bg-gradient-to-r from-sky-700 to-blue-900 px-6 py-4 text-white flex justify-between items-center">
                                     <h5 class="text-base font-bold flex items-center gap-2">
-                                        <i data-lucide="users" class="w-5 h-5 text-sky-300"></i> Thành lập hội đồng Phản
-                                        Biện Mới
+                                        <i data-lucide="users" class="w-5 h-5 text-sky-300"></i>
+                                        ${councilReadOnly ? 'Thông tin hội đồng' : not empty editingCouncilId ? 'Chỉnh sửa hội đồng' : 'Thành lập hội đồng Phản Biện Mới'}
                                     </h5>
-                                    <button type="button" class="text-white/80 hover:text-white p-1"
+                                    <button type="button" class="btn-icon text-white/80 hover:text-white p-1"
                                         data-bs-dismiss="modal">
                                         <i data-lucide="x" class="w-5 h-5"></i>
                                     </button>
                                 </div>
 
                                 <div class="modal-body p-6 space-y-4">
+                                    <c:if test="${councilFormHasErrors}">
+                                        <p role="alert" class="form-field-error">Chưa thể lưu hội đồng. Vui lòng sửa các thông tin được đánh dấu bên dưới.</p>
+                                    </c:if>
+                                    <form:errors path="" element="p" cssClass="form-field-error" />
+                                    <c:if test="${councilReadOnly}">
+                                        <p class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800" role="status">
+                                            Hội đồng đã phân công đề tài. Bạn chỉ có thể xem thông tin, không thể chỉnh sửa.
+                                        </p>
+                                    </c:if>
                                     <div
                                         class="bg-sky-50 border border-sky-200 text-sky-950 rounded-2xl p-3.5 text-xs flex items-center gap-2">
                                         <i data-lucide="info" class="w-4 h-4 text-sky-600 shrink-0"></i>
@@ -327,20 +360,25 @@
                                             bao gồm 1 Chủ tịch và 1 Thư ký.</span>
                                     </div>
 
+                                    <fieldset class="space-y-4 min-w-0" ${councilReadOnly ? 'disabled' : ''}>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mã hội đồng
                                                 <span class="text-rose-500">*</span></label>
-                                            <input type="text" name="code"
-                                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                placeholder="Ví dụ: HD04" required>
+                                            <form:input path="code" id="councilCodeInput"
+                                                cssClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="councilCodeInputError" maxlength="30" placeholder="Ví dụ: HD04" required="required" />
+                                            <form:errors path="code" id="councilCodeInputError" element="p" cssClass="form-field-error" />
                                         </div>
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên hội đồng
                                                 <span class="text-rose-500">*</span></label>
-                                            <input type="text" name="name"
-                                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                placeholder="Hội đồng Phản biện KLTN 04..." required>
+                                            <form:input path="name" id="councilNameInput"
+                                                cssClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="councilNameInputError" maxlength="255" placeholder="Hội đồng Phản biện KLTN 04..." required="required" />
+                                            <form:errors path="name" id="councilNameInputError" element="p" cssClass="form-field-error" />
                                         </div>
                                     </div>
 
@@ -348,24 +386,33 @@
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Đợt đăng ký áp
                                                 dụng <span class="text-rose-500">*</span></label>
-                                            <select name="periodId" id="createCouncilPeriod"
-                                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                required>
+                                            <form:select path="periodId" id="createCouncilPeriod"
+                                                cssClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="createCouncilPeriodError" required="required">
+                                                <form:option value="">-- Chọn đợt đăng ký --</form:option>
+                                                <c:if test="${not empty unavailableCouncilPeriod}">
+                                                    <form:option value="${unavailableCouncilPeriod.id}" data-council-date="${unavailableCouncilPeriod.councilReportDate}"><c:out value="${unavailableCouncilPeriod.name}" /></form:option>
+                                                </c:if>
                                                 <c:forEach var="p" items="${councilCreationPeriods}">
-                                                    <option value="${p.id}" data-council-date="${p.councilReportDate}"><c:out value="${p.name}" /></option>
+                                                    <form:option value="${p.id}" data-council-date="${p.councilReportDate}"><c:out value="${p.name}" /></form:option>
                                                 </c:forEach>
-                                            </select>
+                                            </form:select>
+                                            <form:errors path="periodId" id="createCouncilPeriodError" element="p" cssClass="form-field-error" />
                                         </div>
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Khoa quản
                                                 lý</label>
-                                            <select name="departmentId" id="newCouncilDepartment"
-                                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                required onchange="filterCouncilLecturersByDepartment()">
+                                            <form:select path="departmentId" id="newCouncilDepartment"
+                                                cssClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="newCouncilDepartmentError" required="required" onchange="filterCouncilLecturersByDepartment()">
+                                                <form:option value="">-- Chọn khoa quản lý --</form:option>
                                                 <c:forEach var="d" items="${departments}">
-                                                    <option value="${d.id}"><c:out value="${d.name}" /></option>
+                                                    <form:option value="${d.id}"><c:out value="${d.name}" /></form:option>
                                                 </c:forEach>
-                                            </select>
+                                            </form:select>
+                                            <form:errors path="departmentId" id="newCouncilDepartmentError" element="p" cssClass="form-field-error" />
                                         </div>
                                     </div>
 
@@ -373,7 +420,7 @@
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Ngày báo cáo
                                                 hội đồng <span class="text-rose-500">*</span></label>
-                                            <input type="date" id="createCouncilDate" readonly
+                                            <input type="date" id="createCouncilDate" readonly value="${selectedCouncil.councilDate}"
                                                 class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
                                                 aria-describedby="createCouncilDateHint">
                                             <small id="createCouncilDateHint" class="block mt-1 text-slate-500">Tự động lấy ngày báo cáo của đợt đăng ký.</small>
@@ -381,9 +428,11 @@
                                         <div>
                                             <label class="block text-xs font-bold text-slate-700 mb-1.5">Địa điểm /
                                                 Phòng báo cáo <span class="text-rose-500">*</span></label>
-                                            <input type="text" name="location"
-                                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                placeholder="Ví dụ: Phòng A1-302" required>
+                                            <form:input path="location" id="councilLocationInput"
+                                                cssClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="councilLocationInputError" maxlength="255" placeholder="Ví dụ: Phòng A1-302" required="required" />
+                                            <form:errors path="location" id="councilLocationInputError" element="p" cssClass="form-field-error" />
                                         </div>
                                     </div>
 
@@ -397,33 +446,37 @@
                                             <div>
                                                 <label class="block text-[11px] font-bold text-slate-700 mb-1">Chủ tịch
                                                     Hội đồng <span class="text-rose-500">*</span></label>
-                                                <select name="chairmanId" id="chairmanSelect"
-                                                    class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                                                    required onchange="syncCouncilMemberCards()">
+                                                <form:select path="chairmanId" id="chairmanSelect"
+                                                cssClass="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none is-invalid"
+                                                aria-describedby="chairmanSelectError" required="required" onchange="syncCouncilMemberCards()">
+                                                <form:option value="">-- Chọn Chủ tịch --</form:option>
                                                     <c:forEach var="lec" items="${lecturers}">
-                                                        <option value="${lec.id}"
+                                                        <form:option value="${lec.id}"
                                                             data-department-id="${lec.department.id}"
-                                                            data-assigned-periods="${assignedCouncilPeriodsByLecturer[lec.id]}">
-                                                            ${lec.user.fullName} (${lec.academicDegree != null ?
-                                                            lec.academicDegree : 'GV'})</option>
+                                                            data-assigned-periods="${assignedCouncilPeriodsByLecturer[lec.id]}"><c:out value="${lec.user.fullName}" /> (${lec.academicDegree != null ?
+                                                            lec.academicDegree : 'GV'})</form:option>
                                                     </c:forEach>
-                                                </select>
+                                                </form:select>
+                                            <form:errors path="chairmanId" id="chairmanSelectError" element="p" cssClass="form-field-error" />
                                             </div>
                                             <div>
                                                 <label class="block text-[11px] font-bold text-slate-700 mb-1">Thư ký
                                                     Hội đồng <span class="text-rose-500">*</span></label>
-                                                <select name="secretaryId" id="secretarySelect"
-                                                    class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                                                    required onchange="syncCouncilMemberCards()">
+                                                <form:select path="secretaryId" id="secretarySelect"
+                                                cssClass="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                                cssErrorClass="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none is-invalid"
+                                                aria-describedby="secretarySelectError" required="required" onchange="syncCouncilMemberCards()">
+                                                <form:option value="">-- Chọn Thư ký --</form:option>
                                                     <c:forEach var="lec" items="${lecturers}" varStatus="loop">
-                                                        <option value="${lec.id}"
+                                                        <form:option value="${lec.id}"
                                                             data-department-id="${lec.department.id}"
-                                                            data-assigned-periods="${assignedCouncilPeriodsByLecturer[lec.id]}" ${loop.index==1
-                                                            ? 'selected' : '' }>${lec.user.fullName}
+                                                            data-assigned-periods="${assignedCouncilPeriodsByLecturer[lec.id]}"><c:out value="${lec.user.fullName}" />
                                                             (${lec.academicDegree != null ? lec.academicDegree : 'GV'})
-                                                        </option>
+                                                        </form:option>
                                                     </c:forEach>
-                                                </select>
+                                                </form:select>
+                                            <form:errors path="secretaryId" id="secretarySelectError" element="p" cssClass="form-field-error" />
                                             </div>
                                         </div>
                                     </div>
@@ -438,16 +491,16 @@
                                                 chọn</span>
                                         </div>
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-1"
-                                            id="councilMemberCards">
+                                            id="councilMemberCards" tabindex="-1" aria-describedby="councilMembersError">
                                             <c:forEach var="lec" items="${lecturers}">
                                                 <label
                                                     class="member-select-card flex items-center gap-2.5 p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 hover:border-sky-400 transition-all cursor-pointer"
                                                     data-lecturer-id="${lec.id}"
                                                     data-department-id="${lec.department.id}"
                                                     data-assigned-periods="${assignedCouncilPeriodsByLecturer[lec.id]}">
-                                                    <input type="checkbox" name="memberIds" value="${lec.id}"
-                                                        class="member-cb w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
-                                                        onchange="syncCouncilMemberCards()">
+                                                    <form:checkbox path="memberIds" value="${lec.id}"
+                                                        cssClass="member-cb w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
+                                                        onchange="syncCouncilMemberCards()" />
                                                     <div
                                                         class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0">
                                                         <c:out value="${fn:substring(lec.user.fullName, 0, 1)}" />
@@ -464,22 +517,38 @@
                                                 </label>
                                             </c:forEach>
                                         </div>
+                                        <form:errors path="memberIds" id="councilMembersError" element="p" cssClass="form-field-error" />
                                         <p class="text-[10px] text-slate-500">Chủ tịch và Thư ký được đánh dấu tự động;
                                             chọn thêm 1–3 ủy viên để đạt 3–5 thành viên.</p>
                                         <p id="councilLecturerAvailability" class="text-xs text-amber-700" role="status"></p>
                                         <p class="text-[10px] text-slate-500">Chỉ hiển thị giảng viên cùng khoa chưa tham gia hội đồng nào trong đợt đã chọn.</p>
                                     </div>
+                                    </fieldset>
+                                    <c:if test="${councilReadOnly}">
+                                        <div class="space-y-2">
+                                            <h6 class="text-xs font-bold text-slate-800">Đề tài đã phân công</h6>
+                                            <c:forEach var="assigned" items="${assignmentsByCouncil[editingCouncilId]}">
+                                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+                                                    <strong><c:out value="${assigned.topicRegistration.topic.code}" /></strong>
+                                                    <span class="ml-2 text-sky-700">${assigned.reportTimeLabel}</span>
+                                                    <p class="mt-1 text-slate-600"><c:out value="${assigned.topicRegistration.topic.title}" /></p>
+                                                </div>
+                                            </c:forEach>
+                                        </div>
+                                    </c:if>
                                 </div>
 
                                 <div
                                     class="shrink-0 bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
                                     <button type="button" class="btn-ui btn-ui-outline text-xs"
-                                        data-bs-dismiss="modal">Hủy</button>
-                                    <button type="submit" id="createCouncilSubmit" class="btn-ui btn-ui-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Thành lập hội đồng
-                                    </button>
+                                        data-bs-dismiss="modal">${councilReadOnly ? 'Đóng' : 'Hủy'}</button>
+                                    <c:if test="${not councilReadOnly}">
+                                        <button type="submit" id="createCouncilSubmit" class="btn-ui btn-ui-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                            ${not empty editingCouncilId ? 'Lưu thay đổi' : 'Thành lập hội đồng'}
+                                        </button>
+                                    </c:if>
                                 </div>
-                            </form>
+                            </form:form>
                         </div>
                     </div>
                 </div>
@@ -493,7 +562,7 @@
                         const isSuccess = flash.dataset.messageType === 'success';
                         Swal.fire({
                             icon: isSuccess ? 'success' : 'error',
-                            title: isSuccess ? 'Thành lập hội đồng thành công' : 'Không thể thành lập hội đồng',
+                            title: isSuccess ? 'Thao tác thành công' : 'Không thể thực hiện thao tác',
                             text: flash.textContent.trim(),
                             confirmButtonText: 'Đóng',
                             confirmButtonColor: isSuccess ? '#059669' : '#dc2626'
@@ -554,9 +623,17 @@
                         }
                     }
 
-                    document.addEventListener('DOMContentLoaded', syncCouncilMemberCards);
 
-                    function filterCouncilLecturersByDepartment() {
+
+                    function filterCouncilLecturersByDepartment(preserveSelection = false) {
+                        if (document.getElementById('createCouncilModal')?.dataset.readonly === 'true') {
+                            document.querySelectorAll('#councilMemberCards .member-select-card').forEach(card => {
+                                card.classList.toggle('hidden', !card.querySelector('.member-cb')?.checked);
+                            });
+                            syncCouncilMemberCards();
+                            return;
+                        }
+                        preserveSelection = preserveSelection === true;
                         const departmentId = document.getElementById('newCouncilDepartment')?.value;
                         const periodId = document.getElementById('createCouncilPeriod')?.value;
                         function isAvailable(element) {
@@ -571,13 +648,17 @@
                                     return option.cloneNode(true);
                                 });
                             }
+                            const previousValue = select.value;
                             const matchingOptions = select._allLecturerOptions.filter(function (option) {
-                                return isAvailable(option);
+                                return option.value && (isAvailable(option) || (preserveSelection && option.value === previousValue));
                             }).map(function (option) {
                                 return option.cloneNode(true);
                             });
                             select.replaceChildren(...matchingOptions);
-                            if (matchingOptions.length > 0) {
+                            if (preserveSelection) {
+                                select.insertBefore(new Option('-- Chọn giảng viên --', ''), select.firstChild);
+                                select.value = previousValue;
+                            } else if (matchingOptions.length > 0) {
                                 select.value = matchingOptions[selectId === 'secretarySelect' && matchingOptions.length > 1 ? 1 : 0].value;
                             } else {
                                 select.add(new Option('Không còn giảng viên phù hợp', ''));
@@ -585,12 +666,12 @@
                         });
                         const chairman = document.getElementById('chairmanSelect');
                         const secretary = document.getElementById('secretarySelect');
-                        if (chairman && secretary && chairman.value === secretary.value && secretary.options.length > 1) {
+                        if (!preserveSelection && chairman && secretary && chairman.value === secretary.value && secretary.options.length > 1) {
                             secretary.value = secretary.options[1].value;
                         }
                         let availableCount = 0;
                         document.querySelectorAll('#councilMemberCards .member-select-card').forEach(function (card) {
-                            const visible = isAvailable(card);
+                            const visible = isAvailable(card) || (preserveSelection && card.querySelector('.member-cb')?.checked);
                             if (visible) availableCount++;
                             card.classList.toggle('hidden', !visible);
                             const checkbox = card.querySelector('.member-cb');
@@ -617,7 +698,14 @@
                     }
 
                     document.addEventListener('DOMContentLoaded', function () {
-                        filterCouncilLecturersByDepartment();
+                        const restore = document.getElementById('createCouncilModal')?.dataset.restore === 'true';
+                        if (!restore) {
+                            ['createCouncilPeriod', 'newCouncilDepartment'].forEach(function (id) {
+                                const select = document.getElementById(id);
+                                if (select && !select.value && select.options.length > 1) select.selectedIndex = 1;
+                            });
+                        }
+                        filterCouncilLecturersByDepartment(restore);
                         document.getElementById('createCouncilPeriod')?.addEventListener('change', filterCouncilLecturersByDepartment);
                         ['councilSearch', 'councilPeriodFilter', 'councilDepartmentFilter'].forEach(function (id) {
                             document.getElementById(id)?.addEventListener('input', filterCouncils);
@@ -626,34 +714,22 @@
                     });
 
                     document.addEventListener('DOMContentLoaded', function () {
-                        const form = document.querySelector('#createCouncilModal form');
-                        if (!form) return;
-                        form.addEventListener('submit', function (event) {
-                            const selectedCount = document.querySelectorAll('#councilMemberCards .member-cb:checked').length;
-                            const chairmanId = document.getElementById('chairmanSelect')?.value;
-                            const secretaryId = document.getElementById('secretarySelect')?.value;
-                            if (chairmanId === secretaryId) {
-                                event.preventDefault();
-                                Swal.fire({
-                                    icon: 'warning',
-                                    title: 'Chủ tịch và Thư ký bị trùng',
-                                    text: 'Vui lòng chọn hai giảng viên khác nhau cho hai vị trí.',
-                                    confirmButtonText: 'Đóng',
-                                    confirmButtonColor: '#d97706'
-                                });
-                                return;
+                        const modal = document.getElementById('createCouncilModal');
+                        if (modal.dataset.reopen !== 'true') return;
+                        modal.querySelectorAll('.is-invalid').forEach(field => field.setAttribute('aria-invalid', 'true'));
+                        if (document.getElementById('councilMembersError')) {
+                            const members = document.getElementById('councilMemberCards');
+                            members.classList.add('is-invalid');
+                            members.setAttribute('aria-invalid', 'true');
+                        }
+                        modal.addEventListener('shown.bs.modal', function () {
+                            const firstInvalid = modal.querySelector('.is-invalid');
+                            if (firstInvalid) {
+                                firstInvalid.focus({ preventScroll: true });
+                                firstInvalid.scrollIntoView({ block: 'center' });
                             }
-                            if (selectedCount < 3 || selectedCount > 5) {
-                                event.preventDefault();
-                                Swal.fire({
-                                    icon: 'warning',
-                                    title: 'Số lượng thành viên chưa hợp lệ',
-                                    text: 'Hội đồng phải có từ 3 đến 5 giảng viên. Hiện tại: ' + selectedCount + ' người.',
-                                    confirmButtonText: 'Đóng',
-                                    confirmButtonColor: '#d97706'
-                                });
-                            }
-                        });
+                        }, { once: true });
+                        bootstrap.Modal.getOrCreateInstance(modal).show();
                     });
 
                     function confirmDeleteCouncil(event, name) {
@@ -681,6 +757,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const date = document.getElementById('createCouncilDate');
     if (!period || !date) return;
     function updateCouncilDate() {
+        if (document.getElementById('createCouncilModal')?.dataset.readonly === 'true') return;
         date.value = period.selectedOptions[0]?.dataset.councilDate || '';
         period.setCustomValidity(date.value ? '' : 'Đợt đăng ký chưa thiết lập ngày báo cáo hội đồng.');
     }
